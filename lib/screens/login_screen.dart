@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'dashboard_screen.dart';
+import '../services/backend_service.dart';
+import '../services/sessao.dart';
+import 'torres_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,11 +22,35 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _entrar() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const DashboardScreen()),
-    );
+  bool _entrando = false;
+
+  /// Por enquanto os dois botões usam o login de desenvolvimento (o e-mail
+  /// digitado vira o usuário). Para o Google, troque a chamada por:
+  ///   final auth = await (await GoogleSignIn().signIn())!.authentication;
+  ///   await Sessao.instance.entrarComGoogle(auth.idToken!);
+  Future<void> _entrar() async {
+    if (_entrando) return;
+    setState(() => _entrando = true);
+    try {
+      final email = _emailController.text.trim();
+      await Sessao.instance.entrarDev(email.isEmpty ? 'demo' : email);
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const TorresScreen()),
+      );
+    } on BackendException catch (e) {
+      _avisar(e.message);
+    } catch (_) {
+      _avisar('Sem resposta do servidor.');
+    } finally {
+      if (mounted) setState(() => _entrando = false);
+    }
+  }
+
+  void _avisar(String mensagem) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
   @override

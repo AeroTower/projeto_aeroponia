@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/backend_models.dart';
+import '../models/torre.dart';
 import '../services/backend_service.dart';
 import '../widgets/gauge_card.dart';
 import '../widgets/nivel_agua_card.dart';
@@ -32,7 +33,10 @@ class _Colors {
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  /// Torre exibida. Nula = modo antigo (torre única, rotas sem login).
+  final Torre? torre;
+
+  const DashboardScreen({super.key, this.torre});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -40,7 +44,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
-  final _backend = BackendService();
+  late final BackendService _backend;
   final _minutosLigadoCtrl = TextEditingController(text: '15');
   final _minutosDesligadoCtrl = TextEditingController(text: '45');
   Timer? _timer;
@@ -50,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   double? _ec;
   double? _tempAgua;
   double? _nivelAgua;
+  double? _umidade;
 
   List<String> _alertas = [];
   MotorStatus? _motorStatus;
@@ -59,9 +64,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   String? _erroMotor;
   DateTime? _ultimaAtualizacao;
 
+  /// O kit decide o que aparece. Sem torre (modo antigo), mostra tudo.
+  bool _tem(String capacidade) =>
+      widget.torre == null || widget.torre!.tem(capacidade);
+
   @override
   void initState() {
     super.initState();
+    _backend = BackendService(torreId: widget.torre?.id);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -78,9 +88,10 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (!mounted) return;
       setState(() {
         _ph = snapshot.ph;
-        _ec = snapshot.ec;
-        _tempAgua = snapshot.temperaturaAgua;
+        _ec = snapshot.tds ?? snapshot.ec;
+        _tempAgua = snapshot.temperaturaAgua ?? snapshot.temperaturaAmbiente;
         _nivelAgua = snapshot.nivelAgua;
+        _umidade = snapshot.umidadeRelativa;
         _alertas = snapshot.alertas;
         _conectado = true;
         _erroConexao = null;
@@ -255,7 +266,14 @@ class _DashboardScreenState extends State<DashboardScreen>
         preferredSize: const Size.fromHeight(1),
         child: Container(height: 1, color: _Colors.border.withOpacity(0.75)),
       ),
-      leading: Padding(
+      // Com a lista de torres por trás, a seta volta para ela.
+      leading: Navigator.of(context).canPop()
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: _Colors.textPrimary),
+              tooltip: 'Minhas torres',
+              onPressed: () => Navigator.of(context).maybePop(),
+            )
+          : Padding(
         padding: const EdgeInsets.all(12),
         child: Container(
           decoration: BoxDecoration(
@@ -268,16 +286,16 @@ class _DashboardScreenState extends State<DashboardScreen>
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'AeroTower',
-            style: TextStyle(
+          Text(
+            widget.torre?.nome ?? 'AeroTower',
+            style: const TextStyle(
               color: _Colors.textPrimary,
               fontSize: 17,
               fontWeight: FontWeight.w700,
             ),
           ),
           Text(
-            'Sistema de Monitoramento',
+            widget.torre?.kitNome ?? 'Sistema de Monitoramento',
             style: TextStyle(
               color: _Colors.textSecondary,
               fontSize: 11,
@@ -318,18 +336,21 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ),
         const SizedBox(width: 12),
-        _AppBarButton(
-          icon: Icons.smart_toy_outlined,
-          label: 'IA',
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => ChatbotScreen(
-              phAtual: _ph,
-              tempAtual: _tempAgua,
-              umidadeAtual: _nivelAgua,)),
+        // A IA analisa pH, temperatura e umidade: só faz sentido no kit Pro.
+        if (_tem('ph')) ...[
+          _AppBarButton(
+            icon: Icons.smart_toy_outlined,
+            label: 'IA',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ChatbotScreen(
+                phAtual: _ph,
+                tempAtual: _tempAgua,
+                umidadeAtual: _umidade,)),
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
+          const SizedBox(width: 8),
+        ],
         _AppBarButton(
           icon: Icons.eco_outlined,
           label: 'Plantas',
@@ -597,6 +618,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             ? 2
             : (constraints.maxWidth / 260).floor().clamp(2, 4);
         final childAspectRatio = compact ? 1.08 : 1.7;
+        final cards = _cardsDoKit();
+        if (cards.isEmpty) return _buildSemSensores();
         return GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -604,76 +627,111 @@ class _DashboardScreenState extends State<DashboardScreen>
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
           childAspectRatio: childAspectRatio,
-          children: [
-            GaugeCard(
-              title: "pH",
-              value: _ph,
-              unit: "",
-              min: 0,
-              max: 14,
-              icon: Icons.water_drop_outlined,
-              accentColor: _Colors.cyan,
-              ranges: [
-                GaugeRange(startValue: 0, endValue: 5.5, color: _Colors.red),
-                GaugeRange(
-                  startValue: 5.5,
-                  endValue: 6.5,
-                  color: _Colors.accent,
-                ),
-                GaugeRange(startValue: 6.5, endValue: 14, color: _Colors.red),
-              ],
-            ),
-            GaugeCard(
-              title: "TDS",
-              value: _ec,
-              unit: "ppm",
-              min: 0,
-              max: 2000,
-              icon: Icons.science_outlined,
-              accentColor: _Colors.violet,
-              ranges: [
-                GaugeRange(startValue: 0, endValue: 560, color: _Colors.red),
-                GaugeRange(
-                  startValue: 560,
-                  endValue: 1260,
-                  color: _Colors.accent,
-                ),
-                GaugeRange(
-                  startValue: 1260,
-                  endValue: 2000,
-                  color: _Colors.red,
-                ),
-              ],
-            ),
-            GaugeCard(
-              title: "Temperatura",
-              value: _tempAgua,
-              unit: "°C",
-              min: 10,
-              max: 35,
-              icon: Icons.thermostat_rounded,
-              accentColor: _Colors.orange,
-              ranges: [
-                GaugeRange(startValue: 10, endValue: 20, color: _Colors.red),
-                GaugeRange(startValue: 20, endValue: 28, color: _Colors.accent),
-                GaugeRange(startValue: 28, endValue: 35, color: _Colors.red),
-              ],
-            ),
-            // Nivel de tanque nao e grandeza que oscila em torno de um
-            // ideal como pH ou temperatura: o que importa e quanto ainda
-            // resta. A ampola mostra isso de imediato; o medidor circular
-            // obrigava a interpretar um ponteiro.
-            NivelAguaCard(
-              valor: _nivelAgua,
-              minimoAlerta: 35,
-              corFundo: _Colors.surface,
-              corBorda: _Colors.border,
-              corTexto: _Colors.textPrimary,
-              corTextoSecundario: _Colors.textSecondary,
-            ),
-          ],
+          children: cards,
         );
       },
+    );
+  }
+
+  /// Só os cards dos sensores que o kit tem. A bomba fica sempre.
+  List<Widget> _cardsDoKit() {
+    return [
+      if (_tem('ph'))
+        GaugeCard(
+          title: "pH",
+          value: _ph,
+          unit: "",
+          min: 0,
+          max: 14,
+          icon: Icons.water_drop_outlined,
+          accentColor: _Colors.cyan,
+          ranges: [
+            GaugeRange(startValue: 0, endValue: 5.5, color: _Colors.red),
+            GaugeRange(
+              startValue: 5.5,
+              endValue: 6.5,
+              color: _Colors.accent,
+            ),
+            GaugeRange(startValue: 6.5, endValue: 14, color: _Colors.red),
+          ],
+        ),
+      if (_tem('tds'))
+        GaugeCard(
+          title: "TDS",
+          value: _ec,
+          unit: "ppm",
+          min: 0,
+          max: 2000,
+          icon: Icons.science_outlined,
+          accentColor: _Colors.violet,
+          ranges: [
+            GaugeRange(startValue: 0, endValue: 560, color: _Colors.red),
+            GaugeRange(
+              startValue: 560,
+              endValue: 1260,
+              color: _Colors.accent,
+            ),
+            GaugeRange(
+              startValue: 1260,
+              endValue: 2000,
+              color: _Colors.red,
+            ),
+          ],
+        ),
+      if (_tem('clima'))
+        GaugeCard(
+          title: "Temperatura",
+          value: _tempAgua,
+          unit: "°C",
+          min: 10,
+          max: 35,
+          icon: Icons.thermostat_rounded,
+          accentColor: _Colors.orange,
+          ranges: [
+            GaugeRange(startValue: 10, endValue: 20, color: _Colors.red),
+            GaugeRange(startValue: 20, endValue: 28, color: _Colors.accent),
+            GaugeRange(startValue: 28, endValue: 35, color: _Colors.red),
+          ],
+        ),
+      // Nivel de tanque nao e grandeza que oscila em torno de um
+      // ideal como pH ou temperatura: o que importa e quanto ainda
+      // resta. A ampola mostra isso de imediato; o medidor circular
+      // obrigava a interpretar um ponteiro.
+      if (_tem('nivel'))
+        NivelAguaCard(
+          valor: _nivelAgua,
+          minimoAlerta: 35,
+          corFundo: _Colors.surface,
+          corBorda: _Colors.border,
+          corTexto: _Colors.textPrimary,
+          corTextoSecundario: _Colors.textSecondary,
+        ),
+    ];
+  }
+
+  /// Kit Básico: não há sensores, só a rega automática.
+  Widget _buildSemSensores() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _Colors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _Colors.border),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.water_rounded, color: _Colors.accent, size: 28),
+          SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'Sua torre rega sozinha no ciclo abaixo. '
+              'Sensor de nível (Kit Completo) e pH, nutrientes e clima '
+              '(Kit Pro) podem ser adicionados depois.',
+              style: TextStyle(color: _Colors.textSecondary, fontSize: 13, height: 1.4),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
