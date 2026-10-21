@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'theme/app_theme.dart';
 import 'screens/login_screen.dart';
 
-void main() {
+Future<void> main() async {
+  // Garante a inicialização das rotinas nativas antes de carregar o .env
+  WidgetsFlutterBinding.ensureInitialized();
+  
+try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint("Aviso: Não foi possível carregar o ficheiro .env: $e");
+  }
   runApp(const MyApp());
 }
 

@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'vincular_torre_screen.dart';
 
 import 'dashboard_screen.dart';
 
@@ -12,6 +18,23 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  
+  bool _isLoading = false;
+  late final GoogleSignIn _googleSignIn;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final String clientId = dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '';
+
+    _googleSignIn = GoogleSignIn(
+      clientId: clientId,
+      // Se estiver a correr na Web, envia null. Se for no telemóvel, passa o clientId.
+      serverClientId: kIsWeb ? null : clientId,
+      scopes: ['email'],
+    );
+  }
 
   @override
   void dispose() {
@@ -19,11 +42,84 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
+  // ... restante do código permanece igual
 
   void _entrar() {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const DashboardScreen()),
+    );
+  }
+
+Future<void> _loginComGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final GoogleSignInAccount? account = await _googleSignIn.signIn();
+      if (account == null) {
+        setState(() => _isLoading = false);
+        return; 
+      }
+
+      final GoogleSignInAuthentication auth = await account.authentication;
+      
+      // Captura o idToken no Mobile ou accessToken na Web
+      final String? tokenParaEnvio = auth.idToken ?? auth.accessToken;
+
+      if (tokenParaEnvio != null) {
+        final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:8000';
+
+        final response = await http.post(
+          Uri.parse('$baseUrl/auth/google'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'token': tokenParaEnvio}),
+        );
+
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> data = jsonDecode(response.body);
+          final bool possuiTorre = data['possui_torre'] ?? false;
+
+          if (!mounted) return;
+
+          if (possuiTorre) {
+            // Usuário já possui uma torre associada
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const DashboardScreen()),
+            );
+          } else {
+            // Usuário autenticado, mas precisa vincular a torre
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const VincularTorreScreen()),
+            );
+          }
+        } else {
+          _mostrarErro('Falha na autenticação pelo servidor (${response.statusCode}).');
+        }
+      } else {
+        _mostrarErro('Não foi possível obter o token de autenticação do Google.');
+      }
+    } catch (error) {
+      _mostrarErro('Erro ao conectar com o Google: $error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _mostrarErro(String mensagem) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensagem),
+        backgroundColor: Colors.redAccent,
+      ),
     );
   }
 
@@ -113,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(
                       height: 48,
                       child: ElevatedButton.icon(
-                        onPressed: _entrar,
+                        onPressed: _isLoading ? null : _entrar,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF39D353),
                           foregroundColor: const Color(0xFF0A0F14),
@@ -149,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(
                       height: 48,
                       child: OutlinedButton(
-                        onPressed: _entrar,
+                        onPressed: _isLoading ? null : _loginComGoogle,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFFE6EDF3),
                           side: const BorderSide(color: Color(0xFF30363D)),
@@ -157,17 +253,26 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _GoogleMark(),
-                            SizedBox(width: 10),
-                            Text(
-                              'Continuar com Google',
-                              style: TextStyle(fontWeight: FontWeight.w700),
+                        child: _isLoading 
+                          ? const SizedBox(
+                              width: 24, 
+                              height: 24, 
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2, 
+                                color: Color(0xFFE6EDF3),
+                              ),
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _GoogleMark(),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Continuar com Google',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
                       ),
                     ),
                   ],
