@@ -6,7 +6,12 @@ import 'dart:convert';
 import 'dashboard_screen.dart';
 
 class VincularTorreScreen extends StatefulWidget {
-  const VincularTorreScreen({super.key});
+  final String userEmail;
+
+  const VincularTorreScreen({
+    super.key,
+    required this.userEmail,
+  });
 
   @override
   State<VincularTorreScreen> createState() => _VincularTorreScreenState();
@@ -22,42 +27,58 @@ class _VincularTorreScreenState extends State<VincularTorreScreen> {
     super.dispose();
   }
 
-  Future<void> _vincularTorre() async {
-    final tokenTorre = _tokenController.text.trim();
+Future<void> _vincularTorre() async {
+  final tokenTorre = _tokenController.text.trim();
 
-    if (tokenTorre.isEmpty) {
-      _mostrarErro('Por favor, informe o token da torre.');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:8000';
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/torre/vincular'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'token_torre': tokenTorre}),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
-        );
-      } else {
-        _mostrarErro('Token de torre inválido ou já em uso.');
-      }
-    } catch (e) {
-      _mostrarErro('Erro ao comunicar com o servidor: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  if (tokenTorre.isEmpty) {
+    _mostrarErro('Por favor, insira o token da AeroTower.');
+    return;
   }
 
+  setState(() => _isLoading = true);
+
+  try {
+    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:8000';
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/torre/vincular'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': widget.userEmail,
+        'token_torre': tokenTorre,
+      }),
+    );
+
+    final Map<String, dynamic> bodyData = jsonDecode(response.body);
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('AeroTower vinculada com sucesso!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+    } else {
+      // Exibe a mensagem de erro exata retornada pela API (HTTP 400 / 409)
+      final String mensagemErro = bodyData['detail'] ?? 'Erro ao vincular torre.';
+      _mostrarErro(mensagemErro);
+    }
+  } catch (e) {
+    _mostrarErro('Erro de conexão com o servidor: $e');
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
+
   void _mostrarErro(String mensagem) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(mensagem), backgroundColor: Colors.redAccent),
     );
