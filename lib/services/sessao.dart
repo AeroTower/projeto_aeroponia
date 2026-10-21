@@ -6,7 +6,8 @@ import 'backend_service.dart';
 
 /// Guarda o token de sessão do back-end enquanto o app está aberto.
 ///
-/// Fluxo do login com Google (para quem está fazendo essa parte):
+/// Fluxo do login com Google (para quem está fazendo essa parte;
+/// exemplo com google_sign_in 6.x):
 ///
 /// ```dart
 /// final conta = await GoogleSignIn(scopes: ['email']).signIn();
