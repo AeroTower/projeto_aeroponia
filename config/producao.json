@@ -1,0 +1,6 @@
+{
+  "AUTH_BASE_URL": "https://COLOQUE-A-URL-DO-SERVICO-DE-AUTH",
+  "BACKEND_BASE_URL": "https://aerotower-backend-bfb7frgsbccuanhf.eastus-01.azurewebsites.net",
+  "GOOGLE_WEB_CLIENT_ID": "COLOQUE-O-CLIENT-ID-WEB.apps.googleusercontent.com",
+  "LOGIN_DEV": false
+}

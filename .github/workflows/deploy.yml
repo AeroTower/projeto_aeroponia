@@ -13,6 +13,8 @@ on:
   push:
     branches:
       - main
+  # Em pull request so confere (analyze + build), nao publica.
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -46,8 +48,16 @@ jobs:
       - name: Dependencias do painel
         run: flutter pub get
 
+      # So erro de compilacao derruba o build; avisos de estilo nao.
+      - name: Analise do painel
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      # Enderecos e client ID do Google: config/producao.json (nada secreto).
       - name: Build do painel
-        run: flutter build web --release --base-href "${{ steps.loja.outputs.base_painel }}"
+        run: >
+          flutter build web --release
+          --base-href "${{ steps.loja.outputs.base_painel }}"
+          --dart-define-from-file=config/producao.json
 
       - name: Posiciona o painel
         run: |
@@ -93,6 +103,7 @@ jobs:
         run: touch publicar/.nojekyll
 
       - name: Deploy
+        if: github.event_name != 'pull_request'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

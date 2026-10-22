@@ -68,14 +68,6 @@ class BackendService {
         .toList();
   }
 
-  Future<Torre> ativarTorre(String codigo, {String? apelido}) async {
-    final json = await _postJson('/torres/ativar', {
-      'codigo': codigo,
-      if (apelido != null && apelido.trim().isNotEmpty) 'apelido': apelido.trim(),
-    });
-    return Torre.fromJson(json);
-  }
-
   // ── Sensores e bomba ────────────────────────────────────────────────────
 
   Future<SensorSnapshot> getDados() async {
