@@ -1,6 +1,7 @@
 class SensorSnapshot {
   final double? ph;
   final double? ec;
+  final double? tds;
   final double? temperaturaAgua;
   final double? temperaturaAmbiente;
   final double? umidadeRelativa;
@@ -11,6 +12,7 @@ class SensorSnapshot {
   const SensorSnapshot({
     required this.ph,
     required this.ec,
+    this.tds,
     required this.temperaturaAgua,
     required this.temperaturaAmbiente,
     required this.umidadeRelativa,
@@ -26,6 +28,7 @@ class SensorSnapshot {
     return SensorSnapshot(
       ph: _toDouble(dados['ph']),
       ec: _firstDouble(dados, const ['ec', 'tds']),
+      tds: _toDouble(dados['tds']),
       temperaturaAgua: _firstDouble(dados, const [
         'temperaturaAgua',
         'temperatura',
@@ -38,7 +41,9 @@ class SensorSnapshot {
         'umidadeRelativa',
         'umidade',
       ]),
-      nivelAgua: _firstDouble(dados, const ['nivelAgua', 'umidade']),
+      // So 'nivelAgua': o fallback antigo para 'umidade' mostrava a umidade
+      // do ar como se fosse o nivel do tanque.
+      nivelAgua: _toDouble(dados['nivelAgua']),
       alertas: alertas.map((alerta) => alerta.toString()).toList(),
       recebidoEm: DateTime.tryParse(json['recebidoEm']?.toString() ?? ''),
     );

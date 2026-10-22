@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/backend_models.dart';
+import '../models/torre.dart';
+import 'sessao.dart';
 
 class BackendException implements Exception {
   final String message;
@@ -26,9 +28,25 @@ class BackendService {
   final http.Client _client;
   final String baseUrl;
 
-  BackendService({http.Client? client, String? baseUrl})
+  /// Torre que este serviço comanda. Nulo = rotas antigas (torre única,
+  /// sem login), que o back-end mantém só durante a transição.
+  final String? torreId;
+
+  BackendService({http.Client? client, String? baseUrl, this.torreId})
     : _client = client ?? http.Client(),
       baseUrl = _normalizeBaseUrl(baseUrl ?? _configuredBaseUrl);
+
+  /// URI na raiz do back-end, para quem não tem uma instância (login).
+  static Uri uriRaiz(String path) {
+    final base = _normalizeBaseUrl(_configuredBaseUrl);
+    final raiz = base.endsWith('/dados')
+        ? base.substring(0, base.length - '/dados'.length)
+        : base;
+    return Uri.parse('$raiz$path');
+  }
+
+  /// '/dados' -> '/torres/AT-.../dados' quando há torre selecionada.
+  String _rota(String path) => torreId == null ? path : '/torres/$torreId$path';
 
   Uri _uri(String path) {
     if (baseUrl.endsWith('/dados')) {
@@ -38,20 +56,34 @@ class BackendService {
     return Uri.parse('$baseUrl$path');
   }
 
+  // ── Torres ──────────────────────────────────────────────────────────────
+
+  Future<List<Torre>> listarTorres() async {
+    final response = await _client
+        .get(_uri('/torres'), headers: Sessao.instance.headers)
+        .timeout(const Duration(seconds: 30));
+    final body = _decodeAny(response);
+    return (body as List<dynamic>)
+        .map((t) => Torre.fromJson(t as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── Sensores e bomba ────────────────────────────────────────────────────
+
   Future<SensorSnapshot> getDados() async {
-    final json = await _getJson('/dados');
+    final json = await _getJson(_rota('/dados'));
     return SensorSnapshot.fromJson(json);
   }
 
   Future<Map<String, double>> getThresholds() async {
-    final json = await _getJson('/thresholds');
+    final json = await _getJson(_rota('/thresholds'));
     return json.map((key, value) => MapEntry(key, (value as num).toDouble()));
   }
 
   Future<Map<String, double>> updateThresholds(
     Map<String, double> thresholds,
   ) async {
-    final json = await _postJson('/thresholds', thresholds);
+    final json = await _postJson(_rota('/thresholds'), thresholds);
     final updated = json['thresholds'] as Map<String, dynamic>? ?? {};
     return updated.map(
       (key, value) => MapEntry(key, (value as num).toDouble()),
@@ -59,7 +91,7 @@ class BackendService {
   }
 
   Future<MotorStatus> getMotorStatus() async {
-    final json = await _getJson('/motor/status');
+    final json = await _getJson(_rota('/motor/status'));
     return MotorStatus.fromJson(json);
   }
 
@@ -67,14 +99,14 @@ class BackendService {
     required int minutosLigado,
     required int minutosDesligado,
   }) async {
-    await _postJson('/motor/ciclo', {
+    await _postJson(_rota('/motor/ciclo'), {
       'minutos_ligado': minutosLigado,
       'minutos_desligado': minutosDesligado,
     });
   }
 
   Future<void> desligarMotor() async {
-    await _postJson('/motor/desligar', const {});
+    await _postJson(_rota('/motor/desligar'), const {});
   }
 
   void close() {
@@ -83,7 +115,7 @@ class BackendService {
 
   Future<Map<String, dynamic>> _getJson(String path) async {
     final response = await _client
-        .get(_uri(path))
+        .get(_uri(path), headers: Sessao.instance.headers)
         .timeout(const Duration(seconds: 5));
     return _decodeResponse(response);
   }
@@ -95,7 +127,10 @@ class BackendService {
     final response = await _client
         .post(
           _uri(path),
-          headers: const {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            ...Sessao.instance.headers,
+          },
           body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 8));
@@ -103,15 +138,19 @@ class BackendService {
   }
 
   Map<String, dynamic> _decodeResponse(http.Response response) {
-    final body = response.body.isEmpty
+    return _decodeAny(response) as Map<String, dynamic>;
+  }
+
+  dynamic _decodeAny(http.Response response) {
+    final dynamic body = response.body.isEmpty
         ? <String, dynamic>{}
-        : jsonDecode(response.body) as Map<String, dynamic>;
+        : jsonDecode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return body;
     }
 
-    final detail = body['detail']?.toString();
+    final detail = body is Map ? body['detail']?.toString() : null;
     throw BackendException(
       detail?.isNotEmpty == true
           ? detail!

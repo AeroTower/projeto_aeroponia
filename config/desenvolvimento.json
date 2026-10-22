@@ -1,0 +1,6 @@
+{
+  "AUTH_BASE_URL": "http://localhost:8000",
+  "BACKEND_BASE_URL": "http://localhost:8001",
+  "GOOGLE_WEB_CLIENT_ID": "",
+  "LOGIN_DEV": true
+}
