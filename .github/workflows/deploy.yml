@@ -8,6 +8,9 @@ name: Deploy Flutter Web to GitHub Pages
 #
 # Assim da para commitar este arquivo antes de mover a loja para ca, sem
 # quebrar o deploy que ja funciona.
+#
+# O base-href sai do nome do repositorio: renomear ou transferir o repo
+# (projeto_aeroponia -> aerotower-app) nao deixa a pagina em branco.
 
 on:
   push:
@@ -36,11 +39,11 @@ jobs:
         run: |
           if [ -f loja/pubspec.yaml ]; then
             echo "existe=true" >> "$GITHUB_OUTPUT"
-            echo "base_painel=/projeto_aeroponia/painel/" >> "$GITHUB_OUTPUT"
+            echo "base_painel=/${{ github.event.repository.name }}/painel/" >> "$GITHUB_OUTPUT"
             echo "Loja encontrada: painel vai para /painel/"
           else
             echo "existe=false" >> "$GITHUB_OUTPUT"
-            echo "base_painel=/projeto_aeroponia/" >> "$GITHUB_OUTPUT"
+            echo "base_painel=/${{ github.event.repository.name }}/" >> "$GITHUB_OUTPUT"
             echo "Sem loja: painel continua na raiz"
           fi
 
@@ -86,7 +89,7 @@ jobs:
       - name: Build da loja
         if: steps.loja.outputs.existe == 'true'
         working-directory: loja
-        run: flutter build web --release --base-href "/projeto_aeroponia/"
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
 
       - name: Coloca a loja na raiz
         if: steps.loja.outputs.existe == 'true'
