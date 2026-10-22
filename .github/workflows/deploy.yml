@@ -20,6 +20,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Na organizacao, o token do workflow e somente leitura por padrao; sem
+# isto o passo Deploy nao consegue gravar na branch gh-pages.
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
