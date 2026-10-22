@@ -1,5 +1,7 @@
 # AeroTower — App
 
+Publicado em **https://app.aerotower.com.br** (GitHub Pages com domínio próprio).
+
 ## Rodar
 
 ```bash
@@ -24,8 +26,8 @@ painel. O painel mostra só os cards dos sensores do kit da torre.
 ## Google Sign-In
 
 - **Web:** `GOOGLE_WEB_CLIENT_ID` = client ID do tipo "Aplicativo da Web".
-  Adicione a URL do GitHub Pages (e `http://localhost:porta` para testar)
-  em "Origens JavaScript autorizadas" no Google Cloud.
+  Em "Origens JavaScript autorizadas" no Google Cloud: `https://app.aerotower.com.br`
+  e `http://localhost:5000` (para testar com `--web-port 5000`).
 - **Android:** crie também um client ID "Android" com o SHA-1 da chave de
   assinatura. O app usa o client ID web como `serverClientId`.
 - **iOS:** client ID "iOS" no `Info.plist` (ver documentação do `google_sign_in`).
