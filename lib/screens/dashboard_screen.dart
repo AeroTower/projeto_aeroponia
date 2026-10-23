@@ -64,6 +64,12 @@ class _DashboardScreenState extends State<DashboardScreen>
   String? _erroMotor;
   DateTime? _ultimaAtualizacao;
 
+  // Presença da torre (só com torre selecionada). Atualizada a cada 15 s:
+  // a torre avisa online/offline pelo MQTT e o Backend repassa.
+  Timer? _timerPresenca;
+  bool? _torreOnline;
+  bool _torreJaConectou = false;
+
   /// O kit decide o que aparece. Sem torre (modo antigo), mostra tudo.
   bool _tem(String capacidade) =>
       widget.torre == null || widget.torre!.tem(capacidade);
@@ -77,9 +83,34 @@ class _DashboardScreenState extends State<DashboardScreen>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
+    _torreOnline = widget.torre?.online;
+    _torreJaConectou = widget.torre?.ultimaLeituraEm != null;
+
     _buscarDados();
     _timer = Timer.periodic(_intervalo, (_) => _buscarDados());
+    if (widget.torre != null) {
+      _timerPresenca = Timer.periodic(
+        const Duration(seconds: 15),
+        (_) => _atualizarPresenca(),
+      );
+    }
   }
+
+  Future<void> _atualizarPresenca() async {
+    try {
+      final torre = await _backend.getTorre();
+      if (!mounted) return;
+      setState(() {
+        _torreOnline = torre.online;
+        _torreJaConectou = _torreJaConectou || torre.ultimaLeituraEm != null;
+      });
+    } catch (_) {
+      // Sem resposta: o aviso de conexão do painel já cobre esse caso.
+    }
+  }
+
+  /// Mostra o cartão de Wi-Fi quando a torre não está mandando dados.
+  bool get _mostrarCartaoWifi => widget.torre != null && _torreOnline != true;
 
   Future<void> _buscarDados() async {
     try {
@@ -96,10 +127,21 @@ class _DashboardScreenState extends State<DashboardScreen>
         _conectado = true;
         _erroConexao = null;
         _ultimaAtualizacao = snapshot.recebidoEm ?? DateTime.now();
+        _torreJaConectou = true;
       });
 
       await _buscarStatusMotor();
     } on BackendException catch (e) {
+      // 503 com torre selecionada = o servidor está bem, a torre é que
+      // ainda não mandou leitura. Quem explica isso é o cartão de Wi-Fi.
+      if (e.statusCode == 503 && widget.torre != null) {
+        if (!mounted) return;
+        setState(() {
+          _conectado = true;
+          _erroConexao = null;
+        });
+        return;
+      }
       _setErro(e.message);
     } catch (_) {
       _setErro('Sem resposta do backend. Ele está rodando?');
@@ -201,6 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _timerPresenca?.cancel();
     _pulseController.dispose();
     _backend.close();
     _minutosLigadoCtrl.dispose();
@@ -229,6 +272,12 @@ class _DashboardScreenState extends State<DashboardScreen>
               // Faixa de alertas críticos
               if (_alertas.isNotEmpty) ...[
                 _buildAlertBanner(),
+                const SizedBox(height: 16),
+              ],
+
+              // Torre sem internet (nunca configurada ou caiu)
+              if (_mostrarCartaoWifi) ...[
+                _buildCartaoWifi(),
                 const SizedBox(height: 16),
               ],
 
@@ -564,6 +613,109 @@ class _DashboardScreenState extends State<DashboardScreen>
                   )
                   .toList(),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Cartão "Conectar a torre ao Wi-Fi" ─────────────────────────────────────
+
+  Widget _buildCartaoWifi() {
+    final torre = widget.torre!;
+    final nuncaConectou = !_torreJaConectou;
+    final titulo = nuncaConectou
+        ? 'Conecte sua torre ao Wi-Fi'
+        : 'Sua torre está sem conexão';
+    final resumo = nuncaConectou
+        ? 'A torre ainda não mandou nenhuma leitura. Ela já rega sozinha; '
+              'para ver os dados aqui, conecte-a à internet:'
+        : 'A torre parou de mandar dados. Ela continua regando no último '
+              'ciclo. Confira se ela está ligada na tomada e se o Wi-Fi da '
+              'casa funciona. Se você trocou o roteador ou a senha, '
+              'configure de novo:';
+    final passos = <String>[
+      if (!nuncaConectou)
+        'Segure o botão BOOT da placa por 5 segundos para a torre esquecer o Wi-Fi antigo.',
+      'No celular, abra o Wi-Fi e conecte na rede "${torre.redeConfiguracao}" (a senha está no manual da torre).',
+      'A página de configuração abre sozinha. Se não abrir, acesse 192.168.4.1 no navegador.',
+      'Escolha o Wi-Fi da sua casa, digite a senha e salve.',
+      'Volte a este app: em até um minuto a torre aparece online.',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _Colors.blueDim,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _Colors.blue.withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                nuncaConectou ? Icons.wifi_find_rounded : Icons.wifi_off_rounded,
+                color: _Colors.blue,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  titulo,
+                  style: const TextStyle(
+                    color: _Colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            resumo,
+            style: const TextStyle(
+              color: _Colors.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (var i = 0; i < passos.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${i + 1}.',
+                    style: const TextStyle(
+                      color: _Colors.blue,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      passos[i],
+                      style: const TextStyle(
+                        color: _Colors.textPrimary,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 4),
+          const Text(
+            'A torre só funciona em redes 2,4 GHz. Redes com página de login '
+            '(universidade, hotel) não funcionam: use o roteador do celular.',
+            style: TextStyle(color: _Colors.textSecondary, fontSize: 12, height: 1.4),
           ),
         ],
       ),

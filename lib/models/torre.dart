@@ -8,6 +8,10 @@ class Torre {
   final bool? online;
   final String? firmware;
 
+  /// Última leitura que o Backend recebeu desta torre. Nula = a torre
+  /// nunca se conectou (ainda não foi configurada no Wi-Fi).
+  final DateTime? ultimaLeituraEm;
+
   const Torre({
     required this.id,
     required this.kit,
@@ -15,6 +19,7 @@ class Torre {
     this.apelido,
     this.online,
     this.firmware,
+    this.ultimaLeituraEm,
   });
 
   factory Torre.fromJson(Map<String, dynamic> json) {
@@ -27,10 +32,16 @@ class Torre {
           .toList(),
       online: json['online'] as bool?,
       firmware: json['firmware'] as String?,
+      ultimaLeituraEm: DateTime.tryParse(json['ultimaLeituraEm']?.toString() ?? ''),
     );
   }
 
   bool tem(String capacidade) => capacidades.contains(capacidade);
+
+  /// Nome da rede que a torre cria quando ainda não tem Wi-Fi salvo
+  /// (firmware v2: "AeroTower-" + os 4 últimos caracteres do id).
+  String get redeConfiguracao =>
+      'AeroTower-${id.length > 4 ? id.substring(id.length - 4) : id}';
 
   String get nome => (apelido != null && apelido!.isNotEmpty) ? apelido! : id;
 
