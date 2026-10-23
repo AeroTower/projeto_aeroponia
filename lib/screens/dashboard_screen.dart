@@ -393,6 +393,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => ChatbotScreen(
+                torreId: widget.torre?.id,
                 phAtual: _ph,
                 tempAtual: _tempAgua,
                 umidadeAtual: _umidade,)),
@@ -405,7 +406,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           label: 'Plantas',
           onPressed: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const PlantsScreen()),
+            MaterialPageRoute(builder: (_) => PlantsScreen(torreId: widget.torre?.id)),
           ),
         ),
         const SizedBox(width: 12),

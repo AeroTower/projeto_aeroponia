@@ -4,11 +4,13 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 
+import '../services/backend_service.dart';
+import '../services/sessao.dart';
+
 // ── Configuração da API ────────────────────────────────────────────────────────
-// Mesma URL de BackendService.defaultBaseUrl (sem o /dados). Se uma
-// mudar, a outra tem de mudar junto — ja esquecemos uma vez, quando a
-// conta antiga da Azure caiu e so o servico foi corrigido.
-const _baseUrl = 'https://aerotower-backend-bfb7frgsbccuanhf.eastus-01.azurewebsites.net';
+// Mesmo endereço do BackendService (BACKEND_BASE_URL do config/*.json):
+// um lugar só para trocar.
+final String _baseUrl = BackendService.uriRaiz('').toString();
 
 // ── Exportado para uso em outros arquivos (ex: chat_bot.dart) ─────────────────
 const availablePlantNames = [
@@ -58,10 +60,16 @@ class Plant {
 }
 
 // ── Serviço de API ─────────────────────────────────────────────────────────────
+/// Cada torre tem as suas plantas: com [torreId], usa
+/// /torres/{id}/plantas (exige login e só mostra as da torre). Sem torre,
+/// cai nas rotas antigas /plantas (só as plantas de antes das várias torres).
 class PlantaService {
+  static Uri _uri(String? torreId, [String resto = '']) => BackendService.uriRaiz(
+        torreId == null ? '/plantas$resto' : '/torres/$torreId/plantas$resto',
+      );
 
-  static Future<List<Plant>> listar() async {
-    final response = await http.get(Uri.parse('$_baseUrl/plantas'));
+  static Future<List<Plant>> listar(String? torreId) async {
+    final response = await http.get(_uri(torreId), headers: Sessao.instance.headers);
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
       return data.map((e) => Plant.fromJson(e)).toList();
@@ -71,15 +79,14 @@ class PlantaService {
 
   // Usa XFile para compatibilidade com Web e Mobile
   static Future<Plant> criar({
+    required String? torreId,
     required String nome,
     required String tipo,
     required String dataPlantio,
     XFile? fotoXFile,
   }) async {
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$_baseUrl/plantas'),
-    );
+    final request = http.MultipartRequest('POST', _uri(torreId))
+      ..headers.addAll(Sessao.instance.headers);
     request.fields['nome']         = nome;
     request.fields['tipo']         = tipo;
     request.fields['data_plantio'] = dataPlantio;
@@ -104,8 +111,11 @@ class PlantaService {
     throw Exception('Erro ao cadastrar planta');
   }
 
-  static Future<void> deletar(int id) async {
-    final response = await http.delete(Uri.parse('$_baseUrl/plantas/$id'));
+  static Future<void> deletar(String? torreId, int id) async {
+    final response = await http.delete(
+      _uri(torreId, '/$id'),
+      headers: Sessao.instance.headers,
+    );
     if (response.statusCode != 200) {
       throw Exception('Erro ao remover planta');
     }
@@ -114,7 +124,10 @@ class PlantaService {
 
 // ── Tela de Plantas ────────────────────────────────────────────────────────────
 class PlantsScreen extends StatefulWidget {
-  const PlantsScreen({super.key});
+  /// Torre cujas plantas aparecem. Nula = plantas antigas (sem torre).
+  final String? torreId;
+
+  const PlantsScreen({super.key, this.torreId});
 
   @override
   State<PlantsScreen> createState() => _PlantsScreenState();
@@ -134,7 +147,7 @@ class _PlantsScreenState extends State<PlantsScreen> {
   Future<void> _carregarPlantas() async {
     setState(() { _loading = true; _erro = null; });
     try {
-      final plantas = await PlantaService.listar();
+      final plantas = await PlantaService.listar(widget.torreId);
       setState(() { _plantas = plantas; _loading = false; });
     } catch (e) {
       setState(() { _erro = 'Erro ao carregar plantas'; _loading = false; });
@@ -149,7 +162,7 @@ class _PlantsScreenState extends State<PlantsScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _AddPlantModal(),
+      builder: (_) => _AddPlantModal(torreId: widget.torreId),
     );
     if (adicionada == true) _carregarPlantas();
   }
@@ -177,7 +190,7 @@ class _PlantsScreenState extends State<PlantsScreen> {
 
     if (confirmar == true) {
       try {
-        await PlantaService.deletar(planta.id);
+        await PlantaService.deletar(widget.torreId, planta.id);
         _carregarPlantas();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -362,6 +375,10 @@ class _PlantsScreenState extends State<PlantsScreen> {
 
 // ── Modal de Adicionar Planta ──────────────────────────────────────────────────
 class _AddPlantModal extends StatefulWidget {
+  final String? torreId;
+
+  const _AddPlantModal({this.torreId});
+
   @override
   State<_AddPlantModal> createState() => _AddPlantModalState();
 }
@@ -416,6 +433,7 @@ class _AddPlantModalState extends State<_AddPlantModal> {
     setState(() { _salvando = true; _erro = null; });
     try {
       await PlantaService.criar(
+        torreId:     widget.torreId,
         nome:        _nomeCtrl.text.trim(),
         tipo:        _tipoCtrl.text.trim(),
         dataPlantio: _dataCtrl.text,

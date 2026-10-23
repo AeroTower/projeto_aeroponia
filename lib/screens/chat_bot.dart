@@ -31,8 +31,12 @@ class ChatbotScreen extends StatefulWidget {
   final double? tempAtual;
   final double? umidadeAtual;
 
+  /// Torre do painel: a IA conhece só as plantas dela.
+  final String? torreId;
+
   const ChatbotScreen({
     super.key,
+    this.torreId,
     this.phAtual,
     this.tempAtual,
     this.umidadeAtual,
@@ -75,7 +79,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   Future<void> _buscarPlantas() async {
     try {
-      final lista = await PlantaService.listar();
+      final lista = await PlantaService.listar(widget.torreId);
       if (mounted) {
         setState(() {
           _plantasReais = lista;
