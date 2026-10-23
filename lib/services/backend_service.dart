@@ -68,6 +68,15 @@ class BackendService {
         .toList();
   }
 
+  /// Estado atual da torre selecionada (online, firmware, última leitura).
+  Future<Torre> getTorre() async {
+    final id = torreId;
+    if (id == null) {
+      throw const BackendException('Nenhuma torre selecionada.');
+    }
+    return Torre.fromJson(await _getJson('/torres/$id'));
+  }
+
   // ── Sensores e bomba ────────────────────────────────────────────────────
 
   Future<SensorSnapshot> getDados() async {
