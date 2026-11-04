@@ -6,6 +6,7 @@ import 'dart:convert';
 
 import '../services/backend_service.dart';
 import '../services/sessao.dart';
+import '../theme/app_theme.dart';
 
 // ── Configuração da API ────────────────────────────────────────────────────────
 // Mesmo endereço do BackendService (BACKEND_BASE_URL do config/*.json):
@@ -19,20 +20,6 @@ const availablePlantNames = [
   'Rúcula 01',
   'Espinafre 01',
 ];
-
-// ── Design tokens ──────────────────────────────────────────────────────────────
-class _C {
-  static const bg            = Color(0xFF0D1117);
-  static const surface       = Color(0xFF161B22);
-  static const surfaceEl     = Color(0xFF1C2129);
-  static const border        = Color(0xFF30363D);
-  static const accent        = Color(0xFF39D353);
-  static const accentDim     = Color(0xFF1A4731);
-  static const textPrimary   = Color(0xFFE6EDF3);
-  static const textSecondary = Color(0xFF8B949E);
-  static const red           = Color(0xFFFF6B6B);
-  static const yellow        = Color(0xFFE3B341);
-}
 
 // ── Modelo de planta (vem do backend) ─────────────────────────────────────────
 class Plant {
@@ -127,7 +114,10 @@ class PlantsScreen extends StatefulWidget {
   /// Torre cujas plantas aparecem. Nula = plantas antigas (sem torre).
   final String? torreId;
 
-  const PlantsScreen({super.key, this.torreId});
+  /// Nome mostrado no cabeçalho. Nulo = rótulo genérico.
+  final String? torreNome;
+
+  const PlantsScreen({super.key, this.torreId, this.torreNome});
 
   @override
   State<PlantsScreen> createState() => _PlantsScreenState();
@@ -158,9 +148,8 @@ class _PlantsScreenState extends State<PlantsScreen> {
     final adicionada = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: _C.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AeroRadius.card)),
       ),
       builder: (_) => _AddPlantModal(torreId: widget.torreId),
     );
@@ -171,18 +160,16 @@ class _PlantsScreenState extends State<PlantsScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: _C.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Remover planta', style: TextStyle(color: _C.textPrimary)),
-        content: Text('Deseja remover "${planta.nome}"?', style: const TextStyle(color: _C.textSecondary)),
+        title: const Text('Remover planta', style: TextStyle(fontFamily: AeroFonts.titulo, color: AeroColors.tinta, fontWeight: FontWeight.w900)),
+        content: Text('Deseja remover "${planta.nome}"?', style: const TextStyle(color: AeroColors.tintaSuave)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar', style: TextStyle(color: _C.textSecondary)),
+            child: const Text('Cancelar', style: TextStyle(color: AeroColors.tintaSuave)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remover', style: TextStyle(color: _C.red)),
+            child: const Text('Remover', style: TextStyle(color: AeroColors.erro)),
           ),
         ],
       ),
@@ -195,7 +182,6 @@ class _PlantsScreenState extends State<PlantsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('${planta.nome} removida!'),
-            backgroundColor: _C.surfaceEl,
             behavior: SnackBarBehavior.floating,
           ));
         }
@@ -203,7 +189,7 @@ class _PlantsScreenState extends State<PlantsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Erro ao remover planta'),
-            backgroundColor: _C.red,
+            backgroundColor: AeroColors.erro,
             behavior: SnackBarBehavior.floating,
           ));
         }
@@ -213,41 +199,35 @@ class _PlantsScreenState extends State<PlantsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: _darkTheme(),
-      child: Scaffold(
-        backgroundColor: _C.bg,
-        appBar: _buildAppBar(),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator(color: _C.accent))
-            : _erro != null
-                ? _buildErro()
-                : _buildBody(),
-      ),
+    return Scaffold(
+      appBar: _buildAppBar(),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _erro != null
+              ? _buildErro()
+              : _buildBody(),
     );
   }
 
   PreferredSizeWidget _buildAppBar() => AppBar(
-    backgroundColor: _C.surface,
-    elevation: 0,
     bottom: const PreferredSize(
       preferredSize: Size.fromHeight(1),
-      child: Divider(height: 1, color: _C.border),
+      child: Divider(height: 1, color: AeroColors.borda),
     ),
     leading: IconButton(
-      icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: _C.textSecondary),
+      icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: AeroColors.tintaSuave),
       onPressed: () => Navigator.pop(context),
     ),
-    title: const Column(
+    title: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Minhas Plantas', style: TextStyle(color: _C.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-        Text('AeroTower · Torre #1', style: TextStyle(color: _C.textSecondary, fontSize: 11)),
+        const Text('Minhas plantas', style: TextStyle(fontFamily: AeroFonts.titulo, color: AeroColors.tinta, fontSize: 18, fontWeight: FontWeight.w900)),
+        Text('AeroTower · $_nomeTorre', style: const TextStyle(fontFamily: AeroFonts.corpo, color: AeroColors.tintaSuave, fontSize: 12, fontWeight: FontWeight.w500)),
       ],
     ),
     actions: [
       IconButton(
-        icon: const Icon(Icons.refresh, color: _C.textSecondary, size: 20),
+        icon: const Icon(Icons.refresh, color: AeroColors.tintaSuave, size: 20),
         onPressed: _carregarPlantas,
       ),
     ],
@@ -257,7 +237,7 @@ class _PlantsScreenState extends State<PlantsScreen> {
     builder: (context, constraints) {
       final cols = (constraints.maxWidth / 220).floor().clamp(2, 4);
       return RefreshIndicator(
-        color: _C.accent,
+        color: AeroColors.musgo,
         onRefresh: _carregarPlantas,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -271,7 +251,7 @@ class _PlantsScreenState extends State<PlantsScreen> {
               const SizedBox(height: 24),
               Row(
                 children: [
-                  const Text('Cultivos Ativos', style: TextStyle(color: _C.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+                  const Text('Cultivos ativos', style: TextStyle(fontFamily: AeroFonts.titulo, color: AeroColors.tinta, fontSize: 22, fontWeight: FontWeight.w900)),
                   const Spacer(),
                   _OutlinedChip(label: '${_plantas.length} plantas'),
                 ],
@@ -307,14 +287,13 @@ class _PlantsScreenState extends State<PlantsScreen> {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.wifi_off, color: _C.textSecondary, size: 48),
+        const Icon(Icons.wifi_off, color: AeroColors.tintaSuave, size: 48),
         const SizedBox(height: 16),
-        const Text('Erro ao carregar plantas', style: TextStyle(color: _C.textSecondary)),
+        const Text('Erro ao carregar plantas', style: TextStyle(color: AeroColors.tintaSuave)),
         const SizedBox(height: 16),
         ElevatedButton(
           onPressed: _carregarPlantas,
-          style: ElevatedButton.styleFrom(backgroundColor: _C.accentDim),
-          child: const Text('Tentar novamente', style: TextStyle(color: _C.accent)),
+          child: const Text('Tentar novamente'),
         ),
       ],
     ),
@@ -325,33 +304,35 @@ class _PlantsScreenState extends State<PlantsScreen> {
     alignment: Alignment.center,
     child: const Column(
       children: [
-        Icon(Icons.eco_outlined, color: _C.textSecondary, size: 48),
+        Icon(Icons.eco_outlined, color: AeroColors.tintaSuave, size: 48),
         SizedBox(height: 12),
-        Text('Nenhuma planta cadastrada', style: TextStyle(color: _C.textSecondary)),
+        Text('Nenhuma planta cadastrada', style: TextStyle(color: AeroColors.tintaSuave)),
         SizedBox(height: 8),
-        Text('Toque em "Adicionar planta" para começar', style: TextStyle(color: _C.textSecondary, fontSize: 12)),
+        Text('Toque em "Adicionar planta" para começar', style: TextStyle(color: AeroColors.tintaSuave, fontSize: 12)),
       ],
     ),
   );
 
+  String get _nomeTorre => widget.torreNome ?? 'Minha torre';
+
   Widget _buildGardenHeader() => Container(
     padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(color: _C.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: _C.border)),
-    child: const Row(
+    decoration: BoxDecoration(color: AeroColors.areia, borderRadius: BorderRadius.circular(AeroRadius.card)),
+    child: Row(
       children: [
-        CircleAvatar(radius: 22, backgroundColor: _C.accentDim, child: Icon(Icons.local_florist, color: _C.accent, size: 22)),
-        SizedBox(width: 12),
+        const CircleAvatar(radius: 22, backgroundColor: AeroColors.mintForte, child: Icon(Icons.local_florist, color: AeroColors.musgo, size: 22)),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Torre #1', style: TextStyle(color: _C.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
-              SizedBox(height: 3),
-              Text('Acompanhamento dos cultivos ativos', style: TextStyle(color: _C.textSecondary, fontSize: 12)),
+              Text(_nomeTorre, style: const TextStyle(fontFamily: AeroFonts.titulo, color: AeroColors.tinta, fontSize: 20, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 3),
+              const Text('Acompanhamento dos cultivos ativos', style: TextStyle(color: AeroColors.tintaSuave, fontSize: 12)),
             ],
           ),
         ),
-        _OutlinedChip(label: 'Aeroponia'),
+        const _OutlinedChip(label: 'Aeroponia'),
       ],
     ),
   );
@@ -362,15 +343,11 @@ class _PlantsScreenState extends State<PlantsScreen> {
         icon: Icons.check_circle_outline,
         value: '${_plantas.length}',
         label: 'Total',
-        color: _C.accent,
+        color: AeroColors.musgo,
       )),
     ],
   );
 
-  ThemeData _darkTheme() => ThemeData.dark().copyWith(
-    scaffoldBackgroundColor: _C.bg,
-    primaryColor: _C.accent,
-  );
 }
 
 // ── Modal de Adicionar Planta ──────────────────────────────────────────────────
@@ -413,12 +390,6 @@ class _AddPlantModalState extends State<_AddPlantModal> {
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      builder: (context, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(primary: _C.accent, surface: _C.surface),
-        ),
-        child: child!,
-      ),
     );
     if (data != null) {
       _dataCtrl.text = '${data.year}-${data.month.toString().padLeft(2, '0')}-${data.day.toString().padLeft(2, '0')}';
@@ -460,11 +431,11 @@ class _AddPlantModalState extends State<_AddPlantModal> {
             Center(
               child: Container(
                 width: 40, height: 4,
-                decoration: BoxDecoration(color: _C.border, borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(color: AeroColors.borda, borderRadius: BorderRadius.circular(2)),
               ),
             ),
             const SizedBox(height: 20),
-            const Text('Adicionar Planta', style: TextStyle(color: _C.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+            const Text('Adicionar planta', style: TextStyle(fontFamily: AeroFonts.titulo, color: AeroColors.tinta, fontSize: 24, fontWeight: FontWeight.w900)),
             const SizedBox(height: 20),
 
             // ── Preview da foto ──────────────────────────────────────────────
@@ -474,21 +445,20 @@ class _AddPlantModalState extends State<_AddPlantModal> {
                 height: 140,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: _C.surfaceEl,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _C.border),
+                  color: AeroColors.areia,
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 child: _fotoBytes != null
                     ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(24),
                         child: Image.memory(_fotoBytes!, fit: BoxFit.cover),
                       )
                     : const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_photo_alternate_outlined, color: _C.textSecondary, size: 36),
+                          Icon(Icons.add_photo_alternate_outlined, color: AeroColors.tintaSuave, size: 36),
                           SizedBox(height: 8),
-                          Text('Adicionar foto (opcional)', style: TextStyle(color: _C.textSecondary, fontSize: 12)),
+                          Text('Adicionar foto (opcional)', style: TextStyle(color: AeroColors.tintaSuave, fontSize: 12)),
                         ],
                       ),
               ),
@@ -500,11 +470,12 @@ class _AddPlantModalState extends State<_AddPlantModal> {
 
             DropdownButtonFormField<String>(
               decoration: _inputDecoration('Tipo'),
-              dropdownColor: _C.surfaceEl,
-              style: const TextStyle(color: _C.textPrimary),
+              dropdownColor: AeroColors.creme,
+              // O dropdown usa este estilo sem misturar com o tema: a fonte vem explícita.
+              style: const TextStyle(fontFamily: AeroFonts.corpo, color: AeroColors.tinta, fontSize: 16),
               items: _tipos.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
               onChanged: (v) => _tipoCtrl.text = v ?? '',
-              hint: const Text('Selecione o tipo', style: TextStyle(color: _C.textSecondary)),
+              hint: const Text('Selecione o tipo', style: TextStyle(color: AeroColors.tintaSuave)),
             ),
             const SizedBox(height: 12),
 
@@ -517,7 +488,7 @@ class _AddPlantModalState extends State<_AddPlantModal> {
             const SizedBox(height: 16),
 
             if (_erro != null) ...[
-              Text(_erro!, style: const TextStyle(color: _C.red, fontSize: 12)),
+              Text(_erro!, style: const TextStyle(color: AeroColors.erro, fontSize: 12)),
               const SizedBox(height: 8),
             ],
 
@@ -526,13 +497,11 @@ class _AddPlantModalState extends State<_AddPlantModal> {
               child: ElevatedButton(
                 onPressed: _salvando ? null : _salvar,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _C.accent,
-                  foregroundColor: _C.bg,
+                  backgroundColor: AeroColors.musgo,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _salvando
-                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _C.bg))
+                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
                     : const Text('Salvar planta', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
             ),
@@ -550,21 +519,14 @@ class _AddPlantModalState extends State<_AddPlantModal> {
     IconData? suffixIcon,
   }) => TextFormField(
     controller: controller,
-    style: const TextStyle(color: _C.textPrimary),
+    style: const TextStyle(color: AeroColors.tinta),
     decoration: _inputDecoration(label, hint: hint, suffixIcon: suffixIcon),
   );
 
   InputDecoration _inputDecoration(String label, {String? hint, IconData? suffixIcon}) => InputDecoration(
     labelText: label,
     hintText: hint,
-    labelStyle: const TextStyle(color: _C.textSecondary),
-    hintStyle: const TextStyle(color: _C.textSecondary),
-    filled: true,
-    fillColor: _C.surfaceEl,
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _C.border)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _C.border)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _C.accent)),
-    suffixIcon: suffixIcon != null ? Icon(suffixIcon, color: _C.textSecondary, size: 18) : null,
+    suffixIcon: suffixIcon != null ? Icon(suffixIcon, color: AeroColors.tintaSuave, size: 18) : null,
   );
 }
 
@@ -580,9 +542,8 @@ class _PlantCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: _C.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _C.border),
+        color: AeroColors.creme,
+        borderRadius: BorderRadius.circular(24),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -595,11 +556,11 @@ class _PlantCard extends StatelessWidget {
                 fotoUrl != null
                     ? Image.network(fotoUrl, fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
-                          color: _C.surfaceEl,
-                          child: const Icon(Icons.eco, color: _C.accent, size: 40),
+                          color: AeroColors.mint,
+                          child: const Icon(Icons.eco, color: AeroColors.musgo, size: 40),
                         ),
                       )
-                    : Container(color: _C.surfaceEl, child: const Icon(Icons.eco, color: _C.accent, size: 40)),
+                    : Container(color: AeroColors.mint, child: const Icon(Icons.eco, color: AeroColors.musgo, size: 40)),
 
                 Positioned(
                   top: 8, right: 8,
@@ -607,8 +568,8 @@ class _PlantCard extends StatelessWidget {
                     onTap: onDelete,
                     child: Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(color: _C.bg.withOpacity(0.7), shape: BoxShape.circle),
-                      child: const Icon(Icons.delete_outline, color: _C.red, size: 16),
+                      decoration: BoxDecoration(color: AeroColors.creme.withValues(alpha: 0.9), shape: BoxShape.circle),
+                      child: const Icon(Icons.delete_outline, color: AeroColors.erro, size: 16),
                     ),
                   ),
                 ),
@@ -622,15 +583,15 @@ class _PlantCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(plant.nome, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: _C.textPrimary, fontWeight: FontWeight.w700, fontSize: 14)),
+                  style: const TextStyle(fontFamily: AeroFonts.titulo, color: AeroColors.tinta, fontWeight: FontWeight.w900, fontSize: 16)),
                 const SizedBox(height: 3),
-                Text(plant.tipo, style: const TextStyle(color: _C.textSecondary, fontSize: 11)),
+                Text(plant.tipo, style: const TextStyle(color: AeroColors.tintaSuave, fontSize: 12)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 10, color: _C.textSecondary),
+                    const Icon(Icons.calendar_today, size: 10, color: AeroColors.tintaSuave),
                     const SizedBox(width: 4),
-                    Text(plant.dataPlantio, style: const TextStyle(color: _C.textSecondary, fontSize: 10)),
+                    Text(plant.dataPlantio, style: const TextStyle(color: AeroColors.tintaSuave, fontSize: 11)),
                   ],
                 ),
               ],
@@ -651,14 +612,14 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-    decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.25))),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    decoration: BoxDecoration(color: AeroColors.mint, borderRadius: BorderRadius.circular(24)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Icon(icon, color: color, size: 18),
       const SizedBox(height: 6),
-      Text(value, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w800, height: 1)),
+      Text(value, style: const TextStyle(fontFamily: AeroFonts.titulo, color: AeroColors.tinta, fontSize: 26, fontWeight: FontWeight.w900, height: 1)),
       const SizedBox(height: 2),
-      Text(label, style: const TextStyle(color: _C.textSecondary, fontSize: 10)),
+      Text(label, style: const TextStyle(color: AeroColors.tintaSuave, fontSize: 12)),
     ]),
   );
 }
@@ -672,11 +633,11 @@ class _AddPlantButton extends StatelessWidget {
     onTap: onTap,
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(color: _C.accentDim, borderRadius: BorderRadius.circular(12), border: Border.all(color: _C.accent.withOpacity(0.35))),
+      decoration: const ShapeDecoration(color: AeroColors.musgo, shape: StadiumBorder()),
       child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.add_circle_outline, color: _C.accent, size: 18),
+        Icon(Icons.add_circle_outline, color: Colors.white, size: 18),
         SizedBox(width: 8),
-        Text('Adicionar planta', style: TextStyle(color: _C.accent, fontWeight: FontWeight.w600, fontSize: 14)),
+        Text('Adicionar planta', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
       ]),
     ),
   );
@@ -689,7 +650,7 @@ class _OutlinedChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-    decoration: BoxDecoration(color: _C.accentDim, borderRadius: BorderRadius.circular(20), border: Border.all(color: _C.accent.withOpacity(0.3))),
-    child: Text(label, style: const TextStyle(color: _C.accent, fontSize: 11, fontWeight: FontWeight.w600)),
+    decoration: BoxDecoration(color: AeroColors.mint, borderRadius: BorderRadius.circular(AeroRadius.pilula)),
+    child: Text(label, style: const TextStyle(color: AeroColors.musgo, fontSize: 11, fontWeight: FontWeight.w600)),
   );
 }

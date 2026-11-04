@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import '../config/app_config.dart';
 import '../services/sessao.dart';
+import '../theme/app_theme.dart';
 import 'torres_screen.dart';
 
 class VincularTorreScreen extends StatefulWidget {
@@ -53,7 +54,7 @@ Future<void> _vincularTorre() async {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('AeroTower vinculada com sucesso!'),
-          backgroundColor: Colors.green,
+          backgroundColor: AeroColors.musgo,
         ),
       );
 
@@ -80,14 +81,14 @@ Future<void> _vincularTorre() async {
   void _mostrarErro(String mensagem) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensagem), backgroundColor: Colors.redAccent),
+      SnackBar(content: Text(mensagem), backgroundColor: AeroColors.erro),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0F14),
+      backgroundColor: AeroColors.bg,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -97,9 +98,8 @@ Future<void> _vincularTorre() async {
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF161B22),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFF30363D)),
+                  color: AeroColors.creme,
+                  borderRadius: BorderRadius.circular(AeroRadius.card),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -108,16 +108,17 @@ Future<void> _vincularTorre() async {
                     const Icon(
                       Icons.sensors_rounded,
                       size: 48,
-                      color: Color(0xFF39D353),
+                      color: AeroColors.terracota,
                     ),
                     const SizedBox(height: 16),
                     const Text(
                       'Vincular AeroTower',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Color(0xFFE6EDF3),
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                        fontFamily: AeroFonts.titulo,
+                        color: AeroColors.tinta,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -125,28 +126,18 @@ Future<void> _vincularTorre() async {
                       'Insira o token/código impresso no seu dispositivo para iniciar o monitoramento.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Color(0xFF8B949E),
+                        color: AeroColors.tintaSuave,
                         fontSize: 13,
                       ),
                     ),
                     const SizedBox(height: 24),
                     TextField(
                       controller: _tokenController,
-                      style: const TextStyle(color: Color(0xFFE6EDF3)),
-                      decoration: InputDecoration(
+                      style: const TextStyle(color: AeroColors.tinta),
+                      decoration: const InputDecoration(
                         hintText: 'Ex: K9X2-7QHM',
-                        hintStyle: const TextStyle(color: Color(0xFF8B949E)),
-                        prefixIcon: const Icon(Icons.key, color: Color(0xFF8B949E)),
-                        filled: true,
-                        fillColor: const Color(0xFF1C2129),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF30363D)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF39D353)),
-                        ),
+                        prefixIcon: Icon(Icons.key, color: AeroColors.tintaSuave),
+                        fillColor: AeroColors.bg,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -154,15 +145,12 @@ Future<void> _vincularTorre() async {
                       height: 48,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _vincularTorre,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF39D353),
-                          foregroundColor: const Color(0xFF0A0F14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(color: Color(0xFF0A0F14))
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2.5),
+                              )
                             : const Text(
                                 'Conectar Torre',
                                 style: TextStyle(fontWeight: FontWeight.bold),

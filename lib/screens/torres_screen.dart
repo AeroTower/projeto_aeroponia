@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/torre.dart';
 import '../services/backend_service.dart';
 import '../services/sessao.dart';
+import '../theme/app_theme.dart';
 import 'dashboard_screen.dart';
 import 'login_screen.dart';
 import 'vincular_torre_screen.dart';
@@ -25,14 +26,6 @@ class TorresScreen extends StatefulWidget {
 }
 
 class _TorresScreenState extends State<TorresScreen> {
-  static const _bg = Color(0xFF0A0F14);
-  static const _surface = Color(0xFF161B22);
-  static const _border = Color(0xFF30363D);
-  static const _accent = Color(0xFF39D353);
-  static const _text = Color(0xFFE6EDF3);
-  static const _textDim = Color(0xFF8B949E);
-  static const _red = Color(0xFFFF6B6B);
-
   static const _tentativas = 10;
   static const _intervalo = Duration(seconds: 1);
 
@@ -61,7 +54,13 @@ class _TorresScreenState extends State<TorresScreen> {
     try {
       var torres = await _backend.listarTorres();
       final esperada = widget.aguardarTorreId;
-      for (var i = 0; esperada != null && !torres.any((t) => t.id == esperada) && i < _tentativas; i++) {
+      for (
+        var i = 0;
+        esperada != null &&
+            !torres.any((t) => t.id == esperada) &&
+            i < _tentativas;
+        i++
+      ) {
         if (!mounted) return;
         setState(() => _aguarde = 'Preparando sua torre…');
         await Future.delayed(_intervalo);
@@ -71,7 +70,10 @@ class _TorresScreenState extends State<TorresScreen> {
 
       if (torres.isEmpty) {
         if (esperada != null) {
-          setState(() => _erro = 'A torre foi vinculada, mas ainda não apareceu. Tente de novo em instantes.');
+          setState(
+            () => _erro =
+                'A torre foi vinculada, mas ainda não apareceu. Tente de novo em instantes.',
+          );
           return;
         }
         Navigator.pushReplacement(
@@ -115,15 +117,15 @@ class _TorresScreenState extends State<TorresScreen> {
   Widget build(BuildContext context) {
     final torres = _torres;
     return Scaffold(
-      backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: _bg,
-        elevation: 0,
-        title: const Text('Minhas torres', style: TextStyle(color: _text, fontWeight: FontWeight.w700)),
+        title: const Text('Minhas torres'),
         actions: [
           IconButton(
             tooltip: 'Sair',
-            icon: const Icon(Icons.logout_rounded, color: _textDim),
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: AeroColors.tintaSuave,
+            ),
             onPressed: _sair,
           ),
         ],
@@ -140,17 +142,29 @@ class _TorresScreenState extends State<TorresScreen> {
                     padding: const EdgeInsets.all(40),
                     child: Column(
                       children: [
-                        const CircularProgressIndicator(color: _accent),
+                        const CircularProgressIndicator(),
                         const SizedBox(height: 16),
-                        Text(_aguarde, style: const TextStyle(color: _textDim)),
+                        Text(
+                          _aguarde,
+                          style: const TextStyle(color: AeroColors.tintaSuave),
+                        ),
                       ],
                     ),
                   ),
                 if (torres != null)
                   for (final torre in torres) _cartaoTorre(torre),
                 if (_erro != null) ...[
-                  Text(_erro!, style: const TextStyle(color: _red, fontSize: 13)),
-                  TextButton(onPressed: _carregar, child: const Text('Tentar de novo')),
+                  Text(
+                    _erro!,
+                    style: const TextStyle(
+                      color: AeroColors.erro,
+                      fontSize: 13,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _carregar,
+                    child: const Text('Tentar de novo'),
+                  ),
                 ],
               ],
             ),
@@ -163,21 +177,36 @@ class _TorresScreenState extends State<TorresScreen> {
   Widget _cartaoTorre(Torre torre) {
     final online = torre.online == true;
     return Card(
-      color: _surface,
+      color: AeroColors.areia,
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: _border),
+        borderRadius: BorderRadius.circular(AeroRadius.card),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: Icon(Icons.water_drop, color: online ? _accent : _textDim),
-        title: Text(torre.nome, style: const TextStyle(color: _text, fontWeight: FontWeight.w700)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        leading: Icon(
+          Icons.water_drop,
+          color: online ? AeroColors.musgo : AeroColors.tintaSuave,
+        ),
+        title: Text(
+          torre.nome,
+          style: const TextStyle(
+            fontFamily: AeroFonts.titulo,
+            color: AeroColors.tinta,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
         subtitle: Text(
           '${torre.kitNome} · ${online ? 'online' : 'offline'}',
-          style: const TextStyle(color: _textDim, fontSize: 12),
+          style: const TextStyle(color: AeroColors.tintaSuave, fontSize: 12),
         ),
-        trailing: const Icon(Icons.chevron_right_rounded, color: _textDim),
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: AeroColors.tintaSuave,
+        ),
         onTap: () => _abrir(torre),
       ),
     );
