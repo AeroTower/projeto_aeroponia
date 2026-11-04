@@ -5,6 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../config/app_config.dart';
 import '../services/backend_service.dart';
 import '../services/sessao.dart';
+import '../theme/app_theme.dart';
+import '../widgets/aero_logo.dart';
 import 'torres_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -98,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(mensagem),
-        backgroundColor: Colors.redAccent,
+        backgroundColor: AeroColors.erro,
       ),
     );
   }
@@ -106,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0F14),
+      backgroundColor: AeroColors.bg,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -116,27 +118,23 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Container(
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF161B22),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFF30363D)),
+                  color: AeroColors.creme,
+                  borderRadius: BorderRadius.circular(AeroRadius.card),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(
-                      Icons.eco_rounded,
-                      size: 56,
-                      color: Color(0xFF39D353),
-                    ),
+                    const Center(child: AeroLogo(tamanho: 64)),
                     const SizedBox(height: 16),
                     const Text(
                       'AeroTower',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Color(0xFFE6EDF3),
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
+                        fontFamily: AeroFonts.titulo,
+                        color: AeroColors.tinta,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -144,8 +142,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Sistema Integrado de Automação e Monitorização Hidropónica',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Color(0xFF8B949E),
-                        fontSize: 13,
+                        color: AeroColors.tintaSuave,
+                        fontSize: 14,
+                        height: 1.4,
                       ),
                     ),
                     const SizedBox(height: 32),
@@ -154,19 +153,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _loginComGoogle,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF21262D),
-                          foregroundColor: const Color(0xFFE6EDF3),
-                          side: const BorderSide(color: Color(0xFF30363D)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          backgroundColor: AeroColors.bg,
+                          foregroundColor: AeroColors.tinta,
+                          side: const BorderSide(color: AeroColors.tinta, width: 0.6),
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: Color(0xFF39D353),
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2.5),
                               )
-                            : Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                            // Em tela muito estreita, reduz o conteúdo em vez de estourar.
+                            : FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Image.network(
                                     'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
@@ -174,18 +175,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                     errorBuilder: (context, error, stackTrace) =>
                                         const Icon(
                                       Icons.account_circle,
-                                      color: Color(0xFFE6EDF3),
+                                      color: AeroColors.tinta,
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   const Text(
                                     'Continuar com o Google',
                                     style: TextStyle(
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w700,
                                       fontSize: 15,
                                     ),
                                   ),
                                 ],
+                              ),
                               ),
                       ),
                     ),
@@ -195,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: _isLoading ? null : _loginDev,
                         child: const Text(
                           'Entrar sem Google (modo de teste)',
-                          style: TextStyle(color: Color(0xFF8B949E)),
+                          style: TextStyle(color: AeroColors.tintaSuave),
                         ),
                       ),
                     ],

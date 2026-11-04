@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 /// Nível do reservatório desenhado como uma ampola vertical que enche de
 /// água, com a porcentagem em cima.
 ///
@@ -17,22 +19,20 @@ class NivelAguaCard extends StatelessWidget {
   final Color corFundo;
   final Color corBorda;
   final Color corTexto;
-  final Color corTextoSecundario;
 
   const NivelAguaCard({
     super.key,
     required this.valor,
     this.minimoAlerta = 35,
-    this.corFundo = const Color(0xFF161B22),
-    this.corBorda = const Color(0xFF30363D),
-    this.corTexto = const Color(0xFFE6EDF3),
-    this.corTextoSecundario = const Color(0xFF8B949E),
+    this.corFundo = AeroColors.areia,
+    this.corBorda = AeroColors.borda,
+    this.corTexto = AeroColors.tinta,
   });
 
-  static const _azul = Color(0xFF58A6FF);
-  static const _azulFundo = Color(0xFF0D2040);
-  static const _vermelho = Color(0xFFFF6B6B);
-  static const _laranja = Color(0xFFFF9500);
+  static const _azul = AeroColors.agua;
+  static const _azulFundo = AeroColors.aguaFundo;
+  static const _vermelho = AeroColors.erro;
+  static const _laranja = AeroColors.alerta;
 
   /// Verde não entra aqui: a água é azul porque é água. A cor só muda
   /// para avisar que está acabando.
@@ -61,8 +61,7 @@ class NivelAguaCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: corFundo,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: corBorda),
+        borderRadius: BorderRadius.circular(AeroRadius.card),
       ),
       // O card da grade é largo e baixo. Empilhar número e ampola deixaria
       // a ampola com uns 40px de altura; lado a lado ela usa toda a altura
@@ -77,16 +76,21 @@ class NivelAguaCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.water_drop_rounded, size: 16, color: _corAgua),
-                    const SizedBox(width: 6),
+                    // Em celular bem estreito, o ícone tiraria espaço do título.
+                    if (MediaQuery.sizeOf(context).width >= 360) ...[
+                      Icon(Icons.water_drop_rounded, size: 16, color: _corAgua),
+                      const SizedBox(width: 6),
+                    ],
                     Flexible(
                       child: Text(
                         'Nível da água',
                         style: TextStyle(
-                          color: corTextoSecundario,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          color: corTexto,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
                         ),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -99,9 +103,10 @@ class NivelAguaCard extends StatelessWidget {
                   child: Text(
                     temLeitura ? '${v.round()}%' : '--',
                     style: TextStyle(
+                      fontFamily: AeroFonts.titulo,
                       color: corTexto,
                       fontSize: 34,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w900,
                       height: 1.0,
                     ),
                   ),
@@ -109,7 +114,11 @@ class NivelAguaCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   _rotuloEstado,
-                  style: TextStyle(color: _corAgua, fontSize: 11),
+                  style: TextStyle(
+                    color: _corAgua,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -190,8 +199,8 @@ class _Ampola extends StatelessWidget {
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              cor.withValues(alpha: 0.85),
-                              cor.withValues(alpha: 0.45),
+                              cor.withValues(alpha: 0.9),
+                              cor.withValues(alpha: 0.65),
                             ],
                           ),
                         ),
@@ -210,7 +219,7 @@ class _Ampola extends StatelessWidget {
                   bottom: altura * marcaAlerta,
                   child: Container(
                     height: 1,
-                    color: const Color(0xFFFF6B6B).withValues(alpha: 0.55),
+                    color: AeroColors.erro.withValues(alpha: 0.55),
                   ),
                 ),
 
@@ -222,7 +231,7 @@ class _Ampola extends StatelessWidget {
                 width: 2,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.10),
+                    color: Colors.white.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(1),
                   ),
                 ),

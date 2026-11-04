@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 class GaugeRange {
   final double startValue;
   final double endValue;
   final Color color;
 
+  /// Diz em palavras o que a cor indica ("ideal", "fora do ideal").
+  final String? rotulo;
+
   const GaugeRange({
     required this.startValue,
     required this.endValue,
     required this.color,
+    this.rotulo,
   });
 }
 
@@ -32,7 +38,7 @@ class GaugeCard extends StatelessWidget {
     required this.max,
     required this.ranges,
     this.icon = Icons.sensors,
-    this.accentColor = const Color(0xFF39D353),
+    this.accentColor = AeroColors.musgo,
     this.precision = 1,
   });
 
@@ -44,7 +50,7 @@ class GaugeCard extends StatelessWidget {
   }
 
   Color _getPointerColor() {
-    if (value == null) return const Color(0xFF8B949E);
+    if (value == null) return AeroColors.tintaSuave;
 
     for (final range in ranges) {
       if (value! >= range.startValue && value! <= range.endValue) {
@@ -53,6 +59,18 @@ class GaugeCard extends StatelessWidget {
     }
 
     return accentColor;
+  }
+
+  String? _rotuloAtual() {
+    if (value == null) return null;
+
+    for (final range in ranges) {
+      if (value! >= range.startValue && value! <= range.endValue) {
+        return range.rotulo;
+      }
+    }
+
+    return null;
   }
 
   List<double> _getStops() {
@@ -73,8 +91,13 @@ class GaugeCard extends StatelessWidget {
     final colors = <Color>[];
 
     for (final range in ranges) {
-      colors.add(range.color);
-      colors.add(range.color);
+      // Fora do ideal fica claro na barra: o trilho não pode parecer um alarme
+      // quando o valor está certo. O marcador é que mostra o estado atual.
+      final cor = range.color == AeroColors.erro
+          ? range.color.withValues(alpha: 0.3)
+          : range.color;
+      colors.add(cor);
+      colors.add(cor);
     }
 
     return colors;
@@ -104,16 +127,8 @@ class GaugeCard extends StatelessWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF161B22),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF30363D)),
-            boxShadow: [
-              BoxShadow(
-                color: pointerColor.withOpacity(value == null ? 0.02 : 0.08),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            color: AeroColors.areia,
+            borderRadius: BorderRadius.circular(AeroRadius.card),
           ),
           child: Padding(
             padding: EdgeInsets.all(padding),
@@ -126,11 +141,8 @@ class GaugeCard extends StatelessWidget {
                       width: iconSize,
                       height: iconSize,
                       decoration: BoxDecoration(
-                        color: accentColor.withOpacity(0.14),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: accentColor.withOpacity(0.25),
-                        ),
+                        color: AeroColors.creme,
+                        shape: BoxShape.circle,
                       ),
                       child: Icon(
                         icon,
@@ -140,14 +152,18 @@ class GaugeCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: const Color(0xFFE6EDF3),
-                          fontWeight: FontWeight.w700,
-                          fontSize: titleFontSize,
+                      // Reduz o título quando não cabe, em vez de cortar a palavra.
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: AeroColors.tinta,
+                            fontWeight: FontWeight.w700,
+                            fontSize: titleFontSize,
+                          ),
                         ),
                       ),
                     ),
@@ -162,16 +178,17 @@ class GaugeCard extends StatelessWidget {
                           child: Text(
                             _formattedValue(),
                             style: const TextStyle(
-                              color: Color(0xFF8B949E),
+                              fontFamily: AeroFonts.titulo,
+                              color: AeroColors.tintaSuave,
                               fontSize: 22,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                         )
                       : LayoutBuilder(
                           builder: (context, constraints) {
                             final barWidth = constraints.maxWidth;
-                            const pointerWidth = 18.0;
+                            const pointerWidth = 14.0;
                             final maxPointerLeft = (barWidth - pointerWidth)
                                 .clamp(0.0, double.infinity);
                             final pointerLeft =
@@ -188,9 +205,10 @@ class GaugeCard extends StatelessWidget {
                                     _formattedValue(),
                                     maxLines: 1,
                                     style: TextStyle(
-                                      color: pointerColor,
+                                      fontFamily: AeroFonts.titulo,
+                                      color: AeroColors.tinta,
                                       fontSize: valueFontSize,
-                                      fontWeight: FontWeight.w800,
+                                      fontWeight: FontWeight.w900,
                                       height: 1,
                                     ),
                                   ),
@@ -200,7 +218,7 @@ class GaugeCard extends StatelessWidget {
                                   clipBehavior: Clip.none,
                                   children: [
                                     Container(
-                                      height: 18,
+                                      height: 10,
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(20),
                                         gradient: LinearGradient(
@@ -209,15 +227,6 @@ class GaugeCard extends StatelessWidget {
                                           colors: _getColors(),
                                           stops: _getStops(),
                                         ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.25,
-                                            ),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ],
                                       ),
                                     ),
 
@@ -226,29 +235,19 @@ class GaugeCard extends StatelessWidget {
                                         0,
                                         maxPointerLeft,
                                       ),
-                                      top: -8,
+                                      top: -6,
                                       child: Container(
                                         width: pointerWidth,
-                                        height: 34,
+                                        height: 22,
                                         decoration: BoxDecoration(
                                           color: pointerColor,
                                           borderRadius: BorderRadius.circular(
                                             12,
                                           ),
                                           border: Border.all(
-                                            color: Colors.white.withOpacity(
-                                              0.65,
-                                            ),
+                                            color: AeroColors.creme,
                                             width: 2,
                                           ),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: pointerColor.withOpacity(
-                                                0.35,
-                                              ),
-                                              blurRadius: 12,
-                                            ),
-                                          ],
                                         ),
                                       ),
                                     ),
@@ -264,14 +263,29 @@ class GaugeCard extends StatelessWidget {
                                     Text(
                                       min.toStringAsFixed(0),
                                       style: const TextStyle(
-                                        color: Color(0xFF8B949E),
+                                        color: AeroColors.tintaSuave,
                                         fontSize: 12,
                                       ),
                                     ),
+                                    // A cor sozinha não basta: o estado
+                                    // também aparece escrito.
+                                    if (_rotuloAtual() != null)
+                                      Flexible(
+                                        child: Text(
+                                          _rotuloAtual()!,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: pointerColor,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
                                     Text(
                                       max.toStringAsFixed(0),
                                       style: const TextStyle(
-                                        color: Color(0xFF8B949E),
+                                        color: AeroColors.tintaSuave,
                                         fontSize: 12,
                                       ),
                                     ),

@@ -3,32 +3,14 @@ import 'package:flutter/material.dart';
 import '../models/backend_models.dart';
 import '../models/torre.dart';
 import '../services/backend_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/aero_logo.dart';
 import '../widgets/gauge_card.dart';
 import '../widgets/nivel_agua_card.dart';
 import 'chat_bot.dart';
 import 'plants_screen.dart';
 
 const _intervalo = Duration(seconds: 3);
-
-// ── Design tokens ──────────────────────────────────────────────────────────────
-class _Colors {
-  static const bg = Color(0xFF0A0F14);
-  static const surface = Color(0xFF161B22);
-  static const surfaceElevated = Color(0xFF1C2129);
-  static const border = Color(0xFF30363D);
-  static const accent = Color(0xFF39D353); // verde hidropônico
-  static const accentDim = Color(0xFF1A4731);
-  static const textPrimary = Color(0xFFE6EDF3);
-  static const textSecondary = Color(0xFF8B949E);
-  static const red = Color(0xFFFF6B6B);
-  static const redDim = Color(0xFF3D1515);
-  static const orange = Color(0xFFFF9500);
-  static const orangeDim = Color(0xFF3D2400);
-  static const blue = Color(0xFF58A6FF);
-  static const blueDim = Color(0xFF0D2040);
-  static const cyan = Color(0xFF2DD4BF);
-  static const violet = Color(0xFFA78BFA);
-}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -178,7 +160,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           content: Text(
             'Informe minutos ligados e desligados maiores que zero.',
           ),
-          backgroundColor: _Colors.surface,
         ),
       );
       return;
@@ -216,9 +197,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       await comando();
       await _buscarStatusMotor();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(sucesso), backgroundColor: _Colors.surface),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(sucesso)));
     } on BackendException catch (e) {
       if (!mounted) return;
       setState(() => _erroMotor = e.message);
@@ -255,50 +236,46 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: _buildDarkTheme(),
-      child: Scaffold(
-        backgroundColor: _Colors.bg,
-        appBar: _buildAppBar(),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Cabeçalho da seção
-              _buildSectionHeader(),
-              const SizedBox(height: 14),
+    return Scaffold(
+      backgroundColor: AeroColors.bg,
+      appBar: _buildAppBar(),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
+        child: Center(
+          // Em tela larga o conteúdo não estica até as bordas.
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildSectionHeader(),
+                const SizedBox(height: 20),
 
-              // Faixa de alertas críticos
-              if (_alertas.isNotEmpty) ...[
-                _buildAlertBanner(),
+                // Faixa de alertas críticos
+                if (_alertas.isNotEmpty) ...[
+                  _buildAlertBanner(),
+                  const SizedBox(height: 16),
+                ],
+
+                // Torre sem internet (nunca configurada ou caiu)
+                if (_mostrarCartaoWifi) ...[
+                  _buildCartaoWifi(),
+                  const SizedBox(height: 16),
+                ],
+
+                // Aviso de erro de conexão
+                if (_erroConexao != null) ...[
+                  _buildConnectionError(),
+                  const SizedBox(height: 16),
+                ],
+
+                _buildGaugeGrid(),
                 const SizedBox(height: 16),
-              ],
-
-              // Torre sem internet (nunca configurada ou caiu)
-              if (_mostrarCartaoWifi) ...[
-                _buildCartaoWifi(),
+                _buildMotorPanel(),
                 const SizedBox(height: 16),
+                _buildStatusBar(),
               ],
-
-              // Aviso de erro de conexão
-              if (_erroConexao != null) ...[
-                _buildConnectionError(),
-                const SizedBox(height: 16),
-              ],
-
-              // Grid de gauges
-              _buildGaugeGrid(),
-
-              const SizedBox(height: 24),
-
-              _buildMotorPanel(),
-
-              const SizedBox(height: 24),
-
-              // Barra de status inferior
-              _buildStatusBar(),
-            ],
+            ),
           ),
         ),
       ),
@@ -309,46 +286,45 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: _Colors.bg,
-      elevation: 0,
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
-        child: Container(height: 1, color: _Colors.border.withOpacity(0.75)),
+        child: Container(height: 1, color: AeroColors.borda),
       ),
       // Com a lista de torres por trás, a seta volta para ela.
       leading: Navigator.of(context).canPop()
           ? IconButton(
-              icon: const Icon(Icons.arrow_back_rounded, color: _Colors.textPrimary),
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+                color: AeroColors.tinta,
+              ),
               tooltip: 'Minhas torres',
               onPressed: () => Navigator.of(context).maybePop(),
             )
-          : Padding(
-        padding: const EdgeInsets.all(12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: _Colors.accentDim,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Icon(Icons.water_drop, color: _Colors.accent, size: 20),
-        ),
-      ),
+          : const Padding(padding: EdgeInsets.all(10), child: AeroLogo()),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             widget.torre?.nome ?? 'AeroTower',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: _Colors.textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
+              fontFamily: AeroFonts.titulo,
+              color: AeroColors.tinta,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              height: 1.15,
             ),
           ),
           Text(
             widget.torre?.kitNome ?? 'Sistema de Monitoramento',
-            style: TextStyle(
-              color: _Colors.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w400,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: AeroFonts.corpo,
+              color: AeroColors.tintaSuave,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -365,15 +341,15 @@ class _DashboardScreenState extends State<DashboardScreen>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: _conectado
-                    ? _Colors.accent.withOpacity(
-                        0.4 + 0.6 * _pulseController.value,
+                    ? AeroColors.musgo.withValues(
+                        alpha: 0.4 + 0.6 * _pulseController.value,
                       )
-                    : _Colors.red.withOpacity(0.6),
+                    : AeroColors.erro.withValues(alpha: 0.6),
                 boxShadow: _conectado
                     ? [
                         BoxShadow(
-                          color: _Colors.accent.withOpacity(
-                            0.3 * _pulseController.value,
+                          color: AeroColors.musgo.withValues(
+                            alpha: 0.3 * _pulseController.value,
                           ),
                           blurRadius: 8,
                           spreadRadius: 2,
@@ -392,11 +368,14 @@ class _DashboardScreenState extends State<DashboardScreen>
             label: 'IA',
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => ChatbotScreen(
-                torreId: widget.torre?.id,
-                phAtual: _ph,
-                tempAtual: _tempAgua,
-                umidadeAtual: _umidade,)),
+              MaterialPageRoute(
+                builder: (_) => ChatbotScreen(
+                  torreId: widget.torre?.id,
+                  phAtual: _ph,
+                  tempAtual: _tempAgua,
+                  umidadeAtual: _umidade,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -406,7 +385,12 @@ class _DashboardScreenState extends State<DashboardScreen>
           label: 'Plantas',
           onPressed: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => PlantsScreen(torreId: widget.torre?.id)),
+            MaterialPageRoute(
+              builder: (_) => PlantsScreen(
+                torreId: widget.torre?.id,
+                torreNome: widget.torre?.nome,
+              ),
+            ),
           ),
         ),
         const SizedBox(width: 12),
@@ -423,128 +407,56 @@ class _DashboardScreenState extends State<DashboardScreen>
               '${_ultimaAtualizacao!.second.toString().padLeft(2, '0')}'
         : '--:--:--';
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _Colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _Colors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Sensores em Tempo Real',
-                  style: TextStyle(
-                    color: _Colors.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: [
-                    _MetaPill(
-                      icon: Icons.schedule_rounded,
-                      label: 'Atualizado às $hora',
-                    ),
-                    _MetaPill(
-                      icon: Icons.autorenew_rounded,
-                      label: 'Intervalo ${_intervalo.inSeconds}s',
-                    ),
-                  ],
-                ),
-              ],
-            ),
+    // Etiqueta + título grande + linha de informações: mesma hierarquia do
+    // topo da página inicial, sem caixa em volta.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StatusBadge(
+          // Servidor respondendo não quer dizer torre conectada.
+          label: _erroConexao != null
+              ? 'Offline'
+              : _mostrarCartaoWifi
+              ? 'Torre sem conexão'
+              : _conectado
+              ? 'Online'
+              : 'Conectando',
+          color: _erroConexao != null
+              ? AeroColors.erro
+              : _mostrarCartaoWifi
+              ? AeroColors.alerta
+              : _conectado
+              ? AeroColors.musgo
+              : AeroColors.alerta,
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Sensores em tempo real',
+          style: TextStyle(
+            fontFamily: AeroFonts.titulo,
+            color: AeroColors.tinta,
+            fontSize: 32,
+            fontWeight: FontWeight.w900,
+            height: 1.1,
           ),
-          const SizedBox(width: 12),
-          _StatusBadge(
-            label: _erroConexao != null
-                ? 'Offline'
-                : _conectado
-                ? 'Online'
-                : 'Conectando',
-            color: _erroConexao != null
-                ? _Colors.red
-                : _conectado
-                ? _Colors.accent
-                : _Colors.orange,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSensorSummary() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 760;
-        final children = [
-          _SummaryMetric(
-            icon: Icons.water_drop_outlined,
-            label: 'pH',
-            value: _formatMetric(_ph, ''),
-            color: _sensorColor(_ph, 5.5, 6.5),
-          ),
-          _SummaryMetric(
-            icon: Icons.science_outlined,
-            label: 'TDS',
-            value: _formatMetric(_ec, 'ppm'),
-            color: _sensorColor(_ec, 560, 1260),
-          ),
-          _SummaryMetric(
-            icon: Icons.thermostat_rounded,
-            label: 'Temperatura',
-            value: _formatMetric(_tempAgua, '°C'),
-            color: _sensorColor(_tempAgua, 20, 28),
-          ),
-          _SummaryMetric(
-            icon: Icons.opacity_rounded,
-            label: 'Umidade',
-            value: _formatMetric(_nivelAgua, '%'),
-            color: _sensorColor(_nivelAgua, 50, 100),
-          ),
-        ];
-
-        if (isCompact) {
-          return GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 2.5,
-            children: children,
-          );
-        }
-
-        return Row(
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            for (var i = 0; i < children.length; i++) ...[
-              Expanded(child: children[i]),
-              if (i != children.length - 1) const SizedBox(width: 10),
-            ],
+            _MetaPill(
+              icon: Icons.schedule_rounded,
+              label: 'Atualizado às $hora',
+            ),
+            _MetaPill(
+              icon: Icons.autorenew_rounded,
+              label: 'Intervalo ${_intervalo.inSeconds}s',
+            ),
           ],
-        );
-      },
+        ),
+      ],
     );
-  }
-
-  String _formatMetric(double? value, String unit) {
-    if (value == null) return '--';
-    final suffix = unit.isEmpty ? '' : ' $unit';
-    return '${value.toStringAsFixed(1)}$suffix';
-  }
-
-  Color _sensorColor(double? value, double idealMin, double idealMax) {
-    if (value == null) return _Colors.textSecondary;
-    if (value < idealMin || value > idealMax) return _Colors.orange;
-    return _Colors.accent;
   }
 
   // ── Faixa de alertas ───────────────────────────────────────────────────────
@@ -552,9 +464,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildAlertBanner() {
     return Container(
       decoration: BoxDecoration(
-        color: _Colors.redDim,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _Colors.red.withOpacity(0.4)),
+        color: AeroColors.erroFundo,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,19 +474,23 @@ class _DashboardScreenState extends State<DashboardScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: _Colors.red.withOpacity(0.15),
+              color: AeroColors.erro.withValues(alpha: 0.15),
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
+                top: Radius.circular(24),
               ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.warning_rounded, color: _Colors.red, size: 16),
+                const Icon(
+                  Icons.warning_rounded,
+                  color: AeroColors.erro,
+                  size: 16,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   '${_alertas.length} alerta${_alertas.length > 1 ? 's' : ''} ativo${_alertas.length > 1 ? 's' : ''}',
                   style: const TextStyle(
-                    color: _Colors.red,
+                    color: AeroColors.erro,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -597,13 +512,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                         children: [
                           const Text(
                             '›  ',
-                            style: TextStyle(color: _Colors.red, fontSize: 14),
+                            style: TextStyle(
+                              color: AeroColors.erro,
+                              fontSize: 14,
+                            ),
                           ),
                           Expanded(
                             child: Text(
                               a,
                               style: const TextStyle(
-                                color: Color(0xFFFFB3B3),
+                                color: AeroColors.tinta,
                                 fontSize: 13,
                               ),
                             ),
@@ -645,11 +563,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     ];
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: _Colors.blueDim,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _Colors.blue.withOpacity(0.35)),
+        color: AeroColors.aguaFundo,
+        borderRadius: BorderRadius.circular(AeroRadius.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,8 +574,10 @@ class _DashboardScreenState extends State<DashboardScreen>
           Row(
             children: [
               Icon(
-                nuncaConectou ? Icons.wifi_find_rounded : Icons.wifi_off_rounded,
-                color: _Colors.blue,
+                nuncaConectou
+                    ? Icons.wifi_find_rounded
+                    : Icons.wifi_off_rounded,
+                color: AeroColors.agua,
                 size: 20,
               ),
               const SizedBox(width: 10),
@@ -666,9 +585,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 child: Text(
                   titulo,
                   style: const TextStyle(
-                    color: _Colors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    fontFamily: AeroFonts.titulo,
+                    color: AeroColors.tinta,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
@@ -678,7 +598,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           Text(
             resumo,
             style: const TextStyle(
-              color: _Colors.textSecondary,
+              color: AeroColors.tintaSuave,
               fontSize: 13,
               height: 1.4,
             ),
@@ -693,7 +613,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   Text(
                     '${i + 1}.',
                     style: const TextStyle(
-                      color: _Colors.blue,
+                      color: AeroColors.agua,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -703,7 +623,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     child: Text(
                       passos[i],
                       style: const TextStyle(
-                        color: _Colors.textPrimary,
+                        color: AeroColors.tinta,
                         fontSize: 13,
                         height: 1.4,
                       ),
@@ -716,7 +636,11 @@ class _DashboardScreenState extends State<DashboardScreen>
           const Text(
             'A torre só funciona em redes 2,4 GHz. Redes com página de login '
             '(universidade, hotel) não funcionam: use o roteador do celular.',
-            style: TextStyle(color: _Colors.textSecondary, fontSize: 12, height: 1.4),
+            style: TextStyle(
+              color: AeroColors.tintaSuave,
+              fontSize: 12,
+              height: 1.4,
+            ),
           ),
         ],
       ),
@@ -729,24 +653,27 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _Colors.orangeDim,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _Colors.orange.withOpacity(0.3)),
+        color: AeroColors.alertaFundo,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
         children: [
-          const Icon(Icons.wifi_off_rounded, color: _Colors.orange, size: 18),
+          const Icon(
+            Icons.wifi_off_rounded,
+            color: AeroColors.alerta,
+            size: 18,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               _erroConexao!,
-              style: const TextStyle(color: _Colors.orange, fontSize: 13),
+              style: const TextStyle(color: AeroColors.alerta, fontSize: 13),
             ),
           ),
           TextButton(
             onPressed: _buscarDados,
             style: TextButton.styleFrom(
-              foregroundColor: _Colors.orange,
+              foregroundColor: AeroColors.alerta,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -770,16 +697,21 @@ class _DashboardScreenState extends State<DashboardScreen>
         final crossAxisCount = compact
             ? 2
             : (constraints.maxWidth / 260).floor().clamp(2, 4);
-        final childAspectRatio = compact ? 1.08 : 1.7;
+        // Altura fixa, e não proporção: com proporção, o card ficava baixo
+        // demais em certas larguras e o conteúdo estourava. Acompanha o
+        // tamanho de fonte escolhido no aparelho.
+        final alturaCard = MediaQuery.textScalerOf(context).scale(176);
         final cards = _cardsDoKit();
         if (cards.isEmpty) return _buildSemSensores();
-        return GridView.count(
+        return GridView(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: crossAxisCount,
-          crossAxisSpacing: 14,
-          mainAxisSpacing: 14,
-          childAspectRatio: childAspectRatio,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 14,
+            mainAxisSpacing: 14,
+            mainAxisExtent: alturaCard,
+          ),
           children: cards,
         );
       },
@@ -797,15 +729,26 @@ class _DashboardScreenState extends State<DashboardScreen>
           min: 0,
           max: 14,
           icon: Icons.water_drop_outlined,
-          accentColor: _Colors.cyan,
+          accentColor: AeroColors.agua,
           ranges: [
-            GaugeRange(startValue: 0, endValue: 5.5, color: _Colors.red),
+            GaugeRange(
+              startValue: 0,
+              endValue: 5.5,
+              color: AeroColors.erro,
+              rotulo: 'fora do ideal',
+            ),
             GaugeRange(
               startValue: 5.5,
               endValue: 6.5,
-              color: _Colors.accent,
+              color: AeroColors.musgo,
+              rotulo: 'ideal',
             ),
-            GaugeRange(startValue: 6.5, endValue: 14, color: _Colors.red),
+            GaugeRange(
+              startValue: 6.5,
+              endValue: 14,
+              color: AeroColors.erro,
+              rotulo: 'fora do ideal',
+            ),
           ],
         ),
       if (_tem('tds'))
@@ -816,18 +759,25 @@ class _DashboardScreenState extends State<DashboardScreen>
           min: 0,
           max: 2000,
           icon: Icons.science_outlined,
-          accentColor: _Colors.violet,
+          accentColor: AeroColors.terracotaEscuro,
           ranges: [
-            GaugeRange(startValue: 0, endValue: 560, color: _Colors.red),
+            GaugeRange(
+              startValue: 0,
+              endValue: 560,
+              color: AeroColors.erro,
+              rotulo: 'fora do ideal',
+            ),
             GaugeRange(
               startValue: 560,
               endValue: 1260,
-              color: _Colors.accent,
+              color: AeroColors.musgo,
+              rotulo: 'ideal',
             ),
             GaugeRange(
               startValue: 1260,
               endValue: 2000,
-              color: _Colors.red,
+              color: AeroColors.erro,
+              rotulo: 'fora do ideal',
             ),
           ],
         ),
@@ -839,26 +789,33 @@ class _DashboardScreenState extends State<DashboardScreen>
           min: 10,
           max: 35,
           icon: Icons.thermostat_rounded,
-          accentColor: _Colors.orange,
+          accentColor: AeroColors.terracota,
           ranges: [
-            GaugeRange(startValue: 10, endValue: 20, color: _Colors.red),
-            GaugeRange(startValue: 20, endValue: 28, color: _Colors.accent),
-            GaugeRange(startValue: 28, endValue: 35, color: _Colors.red),
+            GaugeRange(
+              startValue: 10,
+              endValue: 20,
+              color: AeroColors.erro,
+              rotulo: 'fora do ideal',
+            ),
+            GaugeRange(
+              startValue: 20,
+              endValue: 28,
+              color: AeroColors.musgo,
+              rotulo: 'ideal',
+            ),
+            GaugeRange(
+              startValue: 28,
+              endValue: 35,
+              color: AeroColors.erro,
+              rotulo: 'fora do ideal',
+            ),
           ],
         ),
       // Nivel de tanque nao e grandeza que oscila em torno de um
       // ideal como pH ou temperatura: o que importa e quanto ainda
       // resta. A ampola mostra isso de imediato; o medidor circular
       // obrigava a interpretar um ponteiro.
-      if (_tem('nivel'))
-        NivelAguaCard(
-          valor: _nivelAgua,
-          minimoAlerta: 35,
-          corFundo: _Colors.surface,
-          corBorda: _Colors.border,
-          corTexto: _Colors.textPrimary,
-          corTextoSecundario: _Colors.textSecondary,
-        ),
+      if (_tem('nivel')) NivelAguaCard(valor: _nivelAgua, minimoAlerta: 35),
     ];
   }
 
@@ -867,20 +824,23 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: _Colors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _Colors.border),
+        color: AeroColors.areia,
+        borderRadius: BorderRadius.circular(AeroRadius.card),
       ),
       child: const Row(
         children: [
-          Icon(Icons.water_rounded, color: _Colors.accent, size: 28),
+          Icon(Icons.water_rounded, color: AeroColors.musgo, size: 28),
           SizedBox(width: 14),
           Expanded(
             child: Text(
               'Sua torre rega sozinha no ciclo abaixo. '
               'Sensor de nível (Kit Completo) e pH, nutrientes e clima '
               '(Kit Pro) podem ser adicionados depois.',
-              style: TextStyle(color: _Colors.textSecondary, fontSize: 13, height: 1.4),
+              style: TextStyle(
+                color: AeroColors.tintaSuave,
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -898,11 +858,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         : '--:--:--';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: _Colors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _Colors.border),
+        color: AeroColors.mint,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -910,16 +869,16 @@ class _DashboardScreenState extends State<DashboardScreen>
           Row(
             children: [
               Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: _Colors.blueDim,
-                  borderRadius: BorderRadius.circular(8),
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: AeroColors.mintForte,
+                  shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.waterfall_chart,
-                  color: _Colors.blue,
-                  size: 18,
+                  Icons.water_rounded,
+                  color: AeroColors.musgo,
+                  size: 20,
                 ),
               ),
               const SizedBox(width: 12),
@@ -928,17 +887,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Controle da Bomba',
+                      'Controle da bomba',
                       style: TextStyle(
-                        color: _Colors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontFamily: AeroFonts.titulo,
+                        color: AeroColors.tinta,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                     Text(
                       'Status: $status | Atualizado as $hora',
                       style: const TextStyle(
-                        color: _Colors.textSecondary,
+                        color: AeroColors.tintaSuave,
                         fontSize: 12,
                       ),
                     ),
@@ -948,7 +908,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               IconButton(
                 tooltip: 'Atualizar status',
                 onPressed: _buscarStatusMotor,
-                color: _Colors.textSecondary,
+                color: AeroColors.tintaSuave,
                 icon: const Icon(Icons.refresh, size: 18),
               ),
             ],
@@ -957,7 +917,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             const SizedBox(height: 12),
             Text(
               _erroMotor!,
-              style: const TextStyle(color: _Colors.orange, fontSize: 12),
+              style: const TextStyle(color: AeroColors.alerta, fontSize: 12),
             ),
           ],
           const SizedBox(height: 14),
@@ -1028,13 +988,17 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _buildStatusBar() {
     if (_erroConexao != null) return _statusErro();
     if (!_conectado) return _statusCarregando();
+    // Alerta ou torre sem conexão já aparecem acima: dizer "tudo certo" aqui
+    // contradiria esses avisos.
+    if (_alertas.isNotEmpty || _mostrarCartaoWifi)
+      return const SizedBox.shrink();
     return _statusOk();
   }
 
   Widget _statusCarregando() {
     return _StatusContainer(
-      color: _Colors.blueDim,
-      borderColor: _Colors.blue.withOpacity(0.3),
+      color: AeroColors.aguaFundo,
+      borderColor: AeroColors.agua.withValues(alpha: 0.3),
       child: Row(
         children: [
           SizedBox(
@@ -1042,13 +1006,13 @@ class _DashboardScreenState extends State<DashboardScreen>
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: const AlwaysStoppedAnimation(_Colors.blue),
+              valueColor: const AlwaysStoppedAnimation(AeroColors.agua),
             ),
           ),
           const SizedBox(width: 12),
           const Text(
             'Buscando dados do backend…',
-            style: TextStyle(color: _Colors.blue, fontSize: 13),
+            style: TextStyle(color: AeroColors.agua, fontSize: 13),
           ),
         ],
       ),
@@ -1057,16 +1021,16 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _statusErro() {
     return _StatusContainer(
-      color: _Colors.redDim,
-      borderColor: _Colors.red.withOpacity(0.3),
+      color: AeroColors.erroFundo,
+      borderColor: AeroColors.erro.withValues(alpha: 0.3),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: _Colors.red, size: 18),
+          const Icon(Icons.error_outline, color: AeroColors.erro, size: 18),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               _erroConexao!,
-              style: const TextStyle(color: _Colors.red, fontSize: 13),
+              style: const TextStyle(color: AeroColors.erro, fontSize: 13),
             ),
           ),
         ],
@@ -1076,39 +1040,17 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _statusOk() {
     return _StatusContainer(
-      color: _Colors.accentDim,
-      borderColor: _Colors.accent.withOpacity(0.3),
+      color: AeroColors.mint,
+      borderColor: AeroColors.musgo.withValues(alpha: 0.3),
       child: const Row(
         children: [
-          Icon(Icons.check_circle_outline, color: _Colors.accent, size: 18),
+          Icon(Icons.check_circle_outline, color: AeroColors.musgo, size: 18),
           SizedBox(width: 12),
           Text(
             'Todos os sistemas operacionais',
-            style: TextStyle(color: _Colors.accent, fontSize: 13),
+            style: TextStyle(color: AeroColors.musgo, fontSize: 13),
           ),
         ],
-      ),
-    );
-  }
-
-  // ── Theme ──────────────────────────────────────────────────────────────────
-
-  ThemeData _buildDarkTheme() {
-    return ThemeData.dark().copyWith(
-      scaffoldBackgroundColor: _Colors.bg,
-      primaryColor: _Colors.accent,
-      cardColor: _Colors.surface,
-      cardTheme: CardThemeData(
-        color: _Colors.surface,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: _Colors.border),
-        ),
-      ),
-      textTheme: ThemeData.dark().textTheme.apply(
-        bodyColor: _Colors.textPrimary,
-        displayColor: _Colors.textPrimary,
       ),
     );
   }
@@ -1134,8 +1076,7 @@ class _StatusContainer extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: child,
     );
@@ -1153,88 +1094,17 @@ class _MetaPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: _Colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _Colors.border),
+        color: AeroColors.areia,
+        borderRadius: BorderRadius.circular(AeroRadius.pilula),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: _Colors.textSecondary, size: 14),
+          Icon(icon, color: AeroColors.tintaSuave, size: 14),
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(color: _Colors.textSecondary, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryMetric extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const _SummaryMetric({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _Colors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.24)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _Colors.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            style: const TextStyle(color: AeroColors.tintaSuave, fontSize: 12),
           ),
         ],
       ),
@@ -1253,9 +1123,8 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.35)),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AeroRadius.pilula),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1298,22 +1167,29 @@ class _MotorButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDanger ? _Colors.red : _Colors.accent;
+    const texto = TextStyle(fontSize: 14, fontWeight: FontWeight.w700);
+    const espaco = EdgeInsets.symmetric(horizontal: 18, vertical: 12);
 
-    return TextButton.icon(
-      onPressed: enabled ? onPressed : null,
-      style: TextButton.styleFrom(
-        foregroundColor: color,
-        disabledForegroundColor: _Colors.textSecondary,
-        backgroundColor: color.withOpacity(enabled ? 0.12 : 0.04),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: color.withOpacity(enabled ? 0.35 : 0.1)),
+    // A ação principal é cheia; "Desligar" fica contornado para não competir.
+    if (isDanger) {
+      return OutlinedButton.icon(
+        onPressed: enabled ? onPressed : null,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AeroColors.erro,
+          side: const BorderSide(color: AeroColors.erro),
+          padding: espaco,
+          shape: const StadiumBorder(),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      ),
-      icon: Icon(icon, size: 17),
-      label: Text(label, style: const TextStyle(fontSize: 12)),
+        icon: Icon(icon, size: 18),
+        label: const Text('Desligar', style: texto),
+      );
+    }
+
+    return ElevatedButton.icon(
+      onPressed: enabled ? onPressed : null,
+      style: ElevatedButton.styleFrom(padding: espaco),
+      icon: Icon(icon, size: 18),
+      label: Text(label, style: texto),
     );
   }
 }
@@ -1337,29 +1213,14 @@ class _MotorCycleField extends StatelessWidget {
       controller: controller,
       enabled: enabled,
       keyboardType: TextInputType.number,
-      style: const TextStyle(color: _Colors.textPrimary, fontSize: 14),
-      cursorColor: _Colors.accent,
+      style: const TextStyle(color: AeroColors.tinta, fontSize: 14),
+      cursorColor: AeroColors.musgo,
       decoration: InputDecoration(
         labelText: '$label (min)',
-        labelStyle: const TextStyle(color: _Colors.textSecondary, fontSize: 12),
-        prefixIcon: Icon(icon, color: _Colors.textSecondary, size: 18),
-        filled: true,
-        fillColor: _Colors.surfaceElevated,
+        prefixIcon: Icon(icon, color: AeroColors.tintaSuave, size: 18),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: _Colors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: _Colors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: _Colors.accent, width: 1.4),
         ),
       ),
     );
@@ -1379,21 +1240,35 @@ class _AppBarButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        foregroundColor: _Colors.textSecondary,
-        backgroundColor: _Colors.surfaceElevated,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: _Colors.border),
+    final borda = const BorderSide(color: AeroColors.tinta, width: 0.6);
+
+    if (MediaQuery.sizeOf(context).width < 480) {
+      return IconButton(
+        tooltip: label,
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          foregroundColor: AeroColors.tinta,
+          side: borda,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        icon: Icon(icon, size: 18),
+      );
+    }
+
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AeroColors.tinta,
+        side: borda,
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
-      icon: Icon(icon, size: 15),
-      label: Text(label, style: const TextStyle(fontSize: 12)),
+      icon: Icon(icon, size: 16),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+      ),
     );
   }
 }

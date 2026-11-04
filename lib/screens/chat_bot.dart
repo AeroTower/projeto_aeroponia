@@ -1,21 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../services/backend_service.dart';
+import '../theme/app_theme.dart';
 import 'plants_screen.dart'; // Importa a classe Plant e PlantaService
-
-// ── Design tokens ──────────────────────────────────────────────────────────────
-class _C {
-  static const bg = Color(0xFF0D1117);
-  static const surface = Color(0xFF161B22);
-  static const surfaceEl = Color(0xFF1C2129);
-  static const border = Color(0xFF30363D);
-  static const accent = Color(0xFF39D353);
-  static const accentDim = Color(0xFF1A4731);
-  static const textPrimary = Color(0xFFE6EDF3);
-  static const textSecondary = Color(0xFF8B949E);
-  static const userBubble = Color(0xFF1A4731);
-  static const aiBubble = Color(0xFF1C2129);
-}
 
 // ── Modelo de mensagem ─────────────────────────────────────────────────────────
 class _Message {
@@ -179,19 +166,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: _darkTheme(),
-      child: Scaffold(
-        backgroundColor: _C.bg,
-        appBar: _buildAppBar(),
-        body: Column(
-          children: [
-            _buildPlantContextCard(),
-            Expanded(child: _buildMessageList()),
-            _buildTypingIndicator(),
-            _buildGenerateBar(),
-          ],
-        ),
+    return Scaffold(
+      appBar: _buildAppBar(),
+      body: Column(
+        children: [
+          _buildPlantContextCard(),
+          Expanded(child: _buildMessageList()),
+          _buildTypingIndicator(),
+          _buildGenerateBar(),
+        ],
       ),
     );
   }
@@ -200,17 +183,15 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: _C.surface,
-      elevation: 0,
       bottom: const PreferredSize(
         preferredSize: Size.fromHeight(1),
-        child: Divider(height: 1, color: _C.border),
+        child: Divider(height: 1, color: AeroColors.borda),
       ),
       leading: IconButton(
         icon: const Icon(
           Icons.arrow_back_ios_new,
           size: 18,
-          color: _C.textSecondary,
+          color: AeroColors.tintaSuave,
         ),
         onPressed: () => Navigator.pop(context),
       ),
@@ -220,22 +201,23 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: _C.accentDim,
+              color: AeroColors.mintForte,
               shape: BoxShape.circle,
-              border: Border.all(color: _C.accent.withOpacity(0.4)),
             ),
-            child: const Icon(Icons.eco, color: _C.accent, size: 18),
+            child: const Icon(Icons.eco, color: AeroColors.musgo, size: 18),
           ),
           const SizedBox(width: 10),
-          Column(
+          // Expanded + Flexible: o subtítulo corta com "…" em vez de estourar.
+          Expanded(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'HydroBot',
                 style: TextStyle(
-                  color: _C.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+                  fontFamily: AeroFonts.titulo,
+                  color: AeroColors.tinta,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               Row(
@@ -245,25 +227,29 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                     height: 6,
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _C.accent,
+                      color: AeroColors.musgo,
                     ),
                   ),
                   const SizedBox(width: 4),
-                  const Text(
-                    'Online · Especialista em hidroponia',
-                    style: TextStyle(color: _C.textSecondary, fontSize: 10),
+                  const Flexible(
+                    child: Text(
+                      'Online · Especialista em hidroponia',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontFamily: AeroFonts.corpo, color: AeroColors.tintaSuave, fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
                   ),
                 ],
               ),
             ],
-          ),
+          )),
         ],
       ),
       actions: [
         IconButton(
           icon: const Icon(
             Icons.delete_outline,
-            color: _C.textSecondary,
+            color: AeroColors.tintaSuave,
             size: 20,
           ),
           tooltip: 'Limpar conversa',
@@ -290,34 +276,29 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   Widget _buildPlantContextCard() {
     return Container(
-      color: _C.surface,
+      color: AeroColors.bg,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: _carregandoPlantas
-          ? const Center(child: CircularProgressIndicator(color: _C.accent))
+          ? const Center(child: CircularProgressIndicator())
           : _plantasReais.isEmpty
               ? const Text(
                   'Nenhuma planta cadastrada na torre.',
-                  style: TextStyle(color: Colors.redAccent, fontSize: 14),
+                  style: TextStyle(color: AeroColors.erro, fontSize: 14),
                 )
               : DropdownButtonFormField<String>(
-                  value: _selectedPlantNome,
-                  dropdownColor: _C.surfaceEl,
-                  iconEnabledColor: _C.textSecondary,
-                  style: const TextStyle(color: _C.textPrimary, fontSize: 14),
-                  decoration: InputDecoration(
+                  initialValue: _selectedPlantNome,
+                  dropdownColor: AeroColors.creme,
+                  iconEnabledColor: AeroColors.tintaSuave,
+                  // O dropdown usa este estilo sem misturar com o tema: a fonte vem explícita.
+                  style: const TextStyle(fontFamily: AeroFonts.corpo, color: AeroColors.tinta, fontSize: 14),
+                  decoration: const InputDecoration(
                     labelText: 'Planta em análise',
-                    labelStyle: const TextStyle(color: _C.textSecondary, fontSize: 13),
-                    prefixIcon: const Icon(
+                    prefixIcon: Icon(
                       Icons.local_florist_outlined,
-                      color: _C.textSecondary,
+                      color: AeroColors.tintaSuave,
                       size: 18,
                     ),
-                    filled: true,
-                    fillColor: _C.surfaceEl,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _C.border)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _C.border)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _C.accent, width: 1.4)),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                   items: _plantasReais.map((plant) => DropdownMenuItem<String>(
                             value: plant.nome,
@@ -357,11 +338,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: _C.accentDim,
+                color: AeroColors.mintForte,
                 shape: BoxShape.circle,
-                border: Border.all(color: _C.accent.withOpacity(0.3)),
               ),
-              child: const Icon(Icons.eco, color: _C.accent, size: 14),
+              child: const Icon(Icons.eco, color: AeroColors.musgo, size: 14),
             ),
             const SizedBox(width: 8),
           ],
@@ -369,15 +349,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: isUser ? _C.userBubble : _C.aiBubble,
+                color: isUser ? AeroColors.musgo : AeroColors.creme,
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isUser ? 16 : 4),
-                  bottomRight: Radius.circular(isUser ? 4 : 16),
-                ),
-                border: Border.all(
-                  color: isUser ? _C.accent.withOpacity(0.3) : _C.border,
+                  topLeft: const Radius.circular(20),
+                  topRight: const Radius.circular(20),
+                  bottomLeft: Radius.circular(isUser ? 20 : 4),
+                  bottomRight: Radius.circular(isUser ? 4 : 20),
                 ),
               ),
               child: _buildMessageText(msg.text, isUser),
@@ -412,8 +389,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     return RichText(
       text: TextSpan(
+        // RichText não herda a fonte do tema; por isso ela vem explícita.
         style: TextStyle(
-          color: isUser ? _C.textPrimary : _C.textPrimary,
+          fontFamily: AeroFonts.corpo,
+          color: isUser ? Colors.white : AeroColors.tinta,
           fontSize: 14,
           height: 1.45,
         ),
@@ -434,19 +413,17 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             width: 28,
             height: 28,
             decoration: BoxDecoration(
-              color: _C.accentDim,
+              color: AeroColors.mintForte,
               shape: BoxShape.circle,
-              border: Border.all(color: _C.accent.withOpacity(0.3)),
             ),
-            child: const Icon(Icons.eco, color: _C.accent, size: 14),
+            child: const Icon(Icons.eco, color: AeroColors.musgo, size: 14),
           ),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: _C.aiBubble,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _C.border),
+              color: AeroColors.creme,
+              borderRadius: BorderRadius.circular(20),
             ),
             child: const _TypingDots(),
           ),
@@ -460,8 +437,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   Widget _buildGenerateBar() {
     return Container(
       decoration: const BoxDecoration(
-        color: _C.surface,
-        border: Border(top: BorderSide(color: _C.border)),
+        color: AeroColors.bg,
+        border: Border(top: BorderSide(color: AeroColors.borda)),
       ),
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       child: SizedBox(
@@ -469,15 +446,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         height: 48,
         child: ElevatedButton.icon(
           onPressed: _isTyping ? null : _solicitarOrientacaoMicroservico,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _C.accent,
-            disabledBackgroundColor: _C.surfaceEl,
-            foregroundColor: _C.bg,
-            disabledForegroundColor: _C.textSecondary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
           icon: Icon(
             _isTyping ? Icons.hourglass_top_rounded : Icons.auto_awesome,
             size: 18,
@@ -491,10 +459,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     );
   }
 
-  ThemeData _darkTheme() => ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: _C.bg,
-        primaryColor: _C.accent,
-      );
 }
 
 // ── Animação de digitação (três pontos) ────────────────────────────────────────
@@ -543,7 +507,7 @@ class _TypingDotsState extends State<_TypingDots>
                   width: 6,
                   height: 6,
                   decoration: const BoxDecoration(
-                    color: _C.textSecondary,
+                    color: AeroColors.tintaSuave,
                     shape: BoxShape.circle,
                   ),
                 ),
