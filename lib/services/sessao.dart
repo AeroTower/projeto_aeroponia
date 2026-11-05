@@ -34,6 +34,32 @@ class Sessao {
   Future<void> entrarDev(String identificador) =>
       _entrar('/auth/dev', {'id': identificador});
 
+  /// Tira a torre da conta (DELETE /torre/{id}/vinculo no serviço de auth).
+  /// O código do adesivo volta a valer: dá para vincular de novo, ou passar
+  /// a torre para outra pessoa. O Backend fica sabendo pelo RabbitMQ.
+  Future<void> desvincularTorre(String torreId) async {
+    final resposta = await http
+        .delete(
+          Uri.parse('${AppConfig.authBaseUrl}/torre/$torreId/vinculo'),
+          headers: headers,
+        )
+        .timeout(const Duration(seconds: 30));
+    if (resposta.statusCode != 200) {
+      String? detalhe;
+      try {
+        detalhe = (jsonDecode(resposta.body) as Map<String, dynamic>)['detail']?.toString();
+      } catch (_) {}
+      throw BackendException(
+        detalhe ?? 'Não foi possível remover a torre (${resposta.statusCode}).',
+        statusCode: resposta.statusCode,
+      );
+    }
+    if (this.torreId == torreId) {
+      this.torreId = null;
+      possuiTorre = false;
+    }
+  }
+
   void sair() {
     token = null;
     usuarioId = null;

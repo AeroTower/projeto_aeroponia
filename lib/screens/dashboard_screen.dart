@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import '../models/backend_models.dart';
 import '../models/torre.dart';
 import '../services/backend_service.dart';
+import '../services/sessao.dart';
 import '../theme/app_theme.dart';
 import '../widgets/aero_logo.dart';
 import '../widgets/gauge_card.dart';
 import '../widgets/nivel_agua_card.dart';
 import 'chat_bot.dart';
+import 'login_screen.dart';
 import 'plants_screen.dart';
+import 'vincular_torre_screen.dart';
 
 const _intervalo = Duration(seconds: 3);
 
@@ -380,22 +383,115 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           const SizedBox(width: 8),
         ],
-        _AppBarButton(
-          icon: Icons.eco_outlined,
-          label: 'Plantas',
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PlantsScreen(
-                torreId: widget.torre?.id,
-                torreNome: widget.torre?.nome,
+        if (widget.torre != null) ...[
+          _AppBarButton(
+            icon: Icons.eco_outlined,
+            label: 'Plantas',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PlantsScreen(
+                  torreId: widget.torre!.id,
+                  torreNome: widget.torre!.nome,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
+          PopupMenuButton<String>(
+            tooltip: 'Mais opções',
+            icon: const Icon(Icons.more_vert_rounded, color: AeroColors.tinta),
+            onSelected: (opcao) {
+              if (opcao == 'remover') _removerTorre();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'remover',
+                child: Row(
+                  children: [
+                    Icon(Icons.link_off_rounded, color: AeroColors.erro, size: 20),
+                    SizedBox(width: 10),
+                    Text('Remover torre da minha conta'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(width: 8),
       ],
     );
+  }
+
+  // ── Remover torre da conta ─────────────────────────────────────────────────
+
+  Future<void> _removerTorre() async {
+    final torre = widget.torre!;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (contexto) => AlertDialog(
+        title: const Text(
+          'Remover torre da sua conta?',
+          style: TextStyle(
+            fontFamily: AeroFonts.titulo,
+            color: AeroColors.tinta,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        content: Text(
+          '"${torre.nome}" deixa de aparecer no app. A torre continua '
+          'funcionando no último ciclo configurado.\n\n'
+          'Para usar de novo — ou passar para outra pessoa — basta digitar o '
+          'código do adesivo. Suas plantas desta torre ficam guardadas e '
+          'voltam se você a vincular de novo; quem vincular depois não as vê.',
+          style: const TextStyle(color: AeroColors.tintaSuave, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contexto, false),
+            child: const Text('Cancelar', style: TextStyle(color: AeroColors.tintaSuave)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(contexto, true),
+            child: const Text('Remover', style: TextStyle(color: AeroColors.erro)),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true || !mounted) return;
+
+    try {
+      await Sessao.instance.desvincularTorre(torre.id);
+    } on BackendException catch (e) {
+      if (e.statusCode == 401) {
+        Sessao.instance.sair();
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (_) => false,
+        );
+        return;
+      }
+      _avisar(e.message, erro: true);
+      return;
+    } catch (_) {
+      _avisar('Sem resposta do servidor. Tente de novo.', erro: true);
+      return;
+    }
+    if (!mounted) return;
+    _avisar('Torre removida da sua conta.');
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const VincularTorreScreen()),
+      (_) => false,
+    );
+  }
+
+  void _avisar(String mensagem, {bool erro = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(mensagem),
+      backgroundColor: erro ? AeroColors.erro : AeroColors.musgo,
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   // ── Cabeçalho da seção ─────────────────────────────────────────────────────

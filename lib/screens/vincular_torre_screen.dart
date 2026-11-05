@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../config/app_config.dart';
 import '../services/sessao.dart';
 import '../theme/app_theme.dart';
+import 'login_screen.dart';
 import 'torres_screen.dart';
 
 class VincularTorreScreen extends StatefulWidget {
@@ -77,6 +78,14 @@ Future<void> _vincularTorre() async {
     if (mounted) setState(() => _isLoading = false);
   }
 }
+
+  void _sair() {
+    Sessao.instance.sair();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
 
   void _mostrarErro(String mensagem) {
     if (!mounted) return;
@@ -156,6 +165,12 @@ Future<void> _vincularTorre() async {
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _isLoading ? null : _sair,
+                      icon: const Icon(Icons.logout_rounded, size: 18, color: AeroColors.tintaSuave),
+                      label: const Text('Sair da conta', style: TextStyle(color: AeroColors.tintaSuave)),
                     ),
                   ],
                 ),

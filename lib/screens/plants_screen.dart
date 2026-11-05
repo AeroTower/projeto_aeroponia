@@ -13,14 +13,6 @@ import '../theme/app_theme.dart';
 // um lugar só para trocar.
 final String _baseUrl = BackendService.uriRaiz('').toString();
 
-// ── Exportado para uso em outros arquivos (ex: chat_bot.dart) ─────────────────
-const availablePlantNames = [
-  'Alface 01',
-  'Tomate 01',
-  'Rúcula 01',
-  'Espinafre 01',
-];
-
 // ── Modelo de planta (vem do backend) ─────────────────────────────────────────
 class Plant {
   final int     id;
@@ -47,15 +39,13 @@ class Plant {
 }
 
 // ── Serviço de API ─────────────────────────────────────────────────────────────
-/// Cada torre tem as suas plantas: com [torreId], usa
-/// /torres/{id}/plantas (exige login e só mostra as da torre). Sem torre,
-/// cai nas rotas antigas /plantas (só as plantas de antes das várias torres).
+/// Plantas de quem está logado, na torre [torreId] (/torres/{id}/plantas).
+/// Se a torre passar para outra pessoa, ela não vê as plantas de quem saiu.
 class PlantaService {
-  static Uri _uri(String? torreId, [String resto = '']) => BackendService.uriRaiz(
-        torreId == null ? '/plantas$resto' : '/torres/$torreId/plantas$resto',
-      );
+  static Uri _uri(String torreId, [String resto = '']) =>
+      BackendService.uriRaiz('/torres/$torreId/plantas$resto');
 
-  static Future<List<Plant>> listar(String? torreId) async {
+  static Future<List<Plant>> listar(String torreId) async {
     final response = await http.get(_uri(torreId), headers: Sessao.instance.headers);
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
@@ -66,7 +56,7 @@ class PlantaService {
 
   // Usa XFile para compatibilidade com Web e Mobile
   static Future<Plant> criar({
-    required String? torreId,
+    required String torreId,
     required String nome,
     required String tipo,
     required String dataPlantio,
@@ -98,7 +88,7 @@ class PlantaService {
     throw Exception('Erro ao cadastrar planta');
   }
 
-  static Future<void> deletar(String? torreId, int id) async {
+  static Future<void> deletar(String torreId, int id) async {
     final response = await http.delete(
       _uri(torreId, '/$id'),
       headers: Sessao.instance.headers,
@@ -111,13 +101,13 @@ class PlantaService {
 
 // ── Tela de Plantas ────────────────────────────────────────────────────────────
 class PlantsScreen extends StatefulWidget {
-  /// Torre cujas plantas aparecem. Nula = plantas antigas (sem torre).
-  final String? torreId;
+  /// Torre cujas plantas aparecem (só as de quem está logado).
+  final String torreId;
 
   /// Nome mostrado no cabeçalho. Nulo = rótulo genérico.
   final String? torreNome;
 
-  const PlantsScreen({super.key, this.torreId, this.torreNome});
+  const PlantsScreen({super.key, required this.torreId, this.torreNome});
 
   @override
   State<PlantsScreen> createState() => _PlantsScreenState();
@@ -352,9 +342,9 @@ class _PlantsScreenState extends State<PlantsScreen> {
 
 // ── Modal de Adicionar Planta ──────────────────────────────────────────────────
 class _AddPlantModal extends StatefulWidget {
-  final String? torreId;
+  final String torreId;
 
-  const _AddPlantModal({this.torreId});
+  const _AddPlantModal({required this.torreId});
 
   @override
   State<_AddPlantModal> createState() => _AddPlantModalState();
