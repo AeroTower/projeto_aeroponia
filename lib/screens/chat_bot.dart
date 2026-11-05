@@ -65,8 +65,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   Future<void> _buscarPlantas() async {
+    final torreId = widget.torreId;
+    if (torreId == null) {
+      _carregandoPlantas = false; // chamado no initState: ainda sem build
+      return;
+    }
     try {
-      final lista = await PlantaService.listar(widget.torreId);
+      final lista = await PlantaService.listar(torreId);
       if (mounted) {
         setState(() {
           _plantasReais = lista;
