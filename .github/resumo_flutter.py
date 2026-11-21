@@ -44,17 +44,35 @@ def contar_testes(relatorio):
     return total, falhas
 
 
+def _faixas(numeros):
+    """[3, 4, 5, 9] -> "3-5, 9"."""
+    faixas, inicio, anterior = [], None, None
+    for n in numeros + [None]:
+        if inicio is None:
+            inicio = anterior = n
+        elif n is not None and n == anterior + 1:
+            anterior = n
+        else:
+            faixas.append(f"{inicio}" if inicio == anterior else f"{inicio}-{anterior}")
+            inicio = anterior = n
+    return ", ".join(faixas)
+
+
 def cobertura(lcov):
     arquivos, atual = {}, None
+    sem_teste = {}
     for linha in Path(lcov).read_text(encoding="utf-8").splitlines():
         if linha.startswith("SF:"):
             atual = linha[3:]
             arquivos[atual] = [0, 0]
+            sem_teste[atual] = []
+        elif linha.startswith("DA:") and linha.split(",")[1].strip() == "0":
+            sem_teste[atual].append(int(linha[3:].split(",")[0]))
         elif linha.startswith("LF:"):
             arquivos[atual][0] = int(linha[3:])
         elif linha.startswith("LH:"):
             arquivos[atual][1] = int(linha[3:])
-    return arquivos
+    return arquivos, sem_teste
 
 
 def main(relatorio, lcov, minimo="90"):
@@ -66,7 +84,7 @@ def main(relatorio, lcov, minimo="90"):
     soma, soma_falhas = sum(total.values()), sum(falhas.values())
     linhas.append(f"| **Total** | **{soma}** | **{soma - soma_falhas}** | **{soma_falhas}** |")
 
-    arquivos = cobertura(lcov)
+    arquivos, sem_teste = cobertura(lcov)
     existentes = {str(p).replace("\\", "/") for p in Path("lib").rglob("*.dart")}
     medidos = {a.replace("\\", "/") for a in arquivos}
     fora = sorted(e for e in existentes if not any(m.endswith(e) for m in medidos))
@@ -75,9 +93,9 @@ def main(relatorio, lcov, minimo="90"):
     lh = sum(v[1] for v in arquivos.values())
     taxa = 100 * lh / lf if lf else 0
     linhas += ["", f"**Cobertura de código:** {taxa:.1f}% ({lh} de {lf} linhas; meta: {minimo}%)", "",
-               "| Arquivo | Linhas | Cobertas | % |", "|---|---:|---:|---:|"]
+               "| Arquivo | Linhas | Cobertas | % | Linhas sem teste |", "|---|---:|---:|---:|---|"]
     for arquivo, (f, h) in sorted(arquivos.items(), key=lambda i: (i[1][1] / i[1][0]) if i[1][0] else 1):
-        linhas.append(f"| `{arquivo}` | {f} | {h} | {100 * h / f if f else 100:.0f}% |")
+        linhas.append(f"| `{arquivo}` | {f} | {h} | {100 * h / f if f else 100:.0f}% | {_faixas(sem_teste[arquivo])} |")
     if fora:
         linhas += ["", "Sem linha executável no lcov (só constantes ou não carregados): "
                    + ", ".join(f"`{f}`" for f in fora)]
