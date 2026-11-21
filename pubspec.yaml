@@ -43,6 +43,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # Dubles do login Google e da galeria de fotos nos testes (ja vem com os plugins).
+  google_sign_in_platform_interface: any
+  image_picker_platform_interface: any
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
