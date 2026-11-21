@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../services/backend_service.dart';
+import '../services/ia_service.dart';
+import '../services/planta_service.dart';
 import '../theme/app_theme.dart';
-import 'plants_screen.dart'; // Importa a classe Plant e PlantaService
 
 // ── Modelo de mensagem ─────────────────────────────────────────────────────────
 class _Message {
@@ -45,8 +46,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   bool _isTyping = false;
   final List<Map<String, String>> _history = [];
   
-  // Instância do serviço que faz a chamada HTTP
-  final _backend = BackendService();
+  // Cliente do microsserviço de IA (endereço em AppConfig.iaBaseUrl)
+  final _ia = IaService();
 
   @override
   void initState() {
@@ -94,7 +95,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   @override
   void dispose() {
-    _backend.close();
+    _ia.close();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -123,7 +124,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _scrollToBottom();
 
     try {
-      final reply = await _backend.analisarCultivoIA(
+      final reply = await _ia.analisarCultivo(
         cultura: _selectedPlantNome!,
         ph: widget.phAtual ?? 7.5,
         temperatura: widget.tempAtual ?? 28.5,
@@ -141,7 +142,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     } on BackendException catch (e) {
       _addError('Erro da IA: ${e.message}');
     } catch (e) {
-      _addError('Falha ao conectar com hidroponia-ia.azurewebsites.net.');
+      _addError('Falha ao conectar com o serviço de IA. Tente de novo em instantes.');
     }
 
     _scrollToBottom();
@@ -498,7 +499,7 @@ class _TypingDotsState extends State<_TypingDots>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (_, __) {
+      builder: (context, child) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {

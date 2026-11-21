@@ -10,7 +10,6 @@ import 'package:hidro_app/services/sessao.dart';
 import 'package:hidro_app/theme/app_theme.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
 /// Faz o papel do Backend, do serviço de auth e da IA ao mesmo tempo.

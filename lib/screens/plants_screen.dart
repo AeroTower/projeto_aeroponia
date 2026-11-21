@@ -1,103 +1,9 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'dart:convert';
 
-import '../services/backend_service.dart';
-import '../services/sessao.dart';
+import '../services/planta_service.dart';
 import '../theme/app_theme.dart';
-
-// ── Configuração da API ────────────────────────────────────────────────────────
-// Mesmo endereço do BackendService (BACKEND_BASE_URL do config/*.json):
-// um lugar só para trocar.
-final String _baseUrl = BackendService.uriRaiz('').toString();
-
-// ── Modelo de planta (vem do backend) ─────────────────────────────────────────
-class Plant {
-  final int     id;
-  final String  nome;
-  final String  tipo;
-  final String  dataPlantio;
-  final String? fotoUrl;
-
-  const Plant({
-    required this.id,
-    required this.nome,
-    required this.tipo,
-    required this.dataPlantio,
-    this.fotoUrl,
-  });
-
-  factory Plant.fromJson(Map<String, dynamic> json) => Plant(
-    id:          json['id'],
-    nome:        json['nome'],
-    tipo:        json['tipo'],
-    dataPlantio: json['data_plantio'],
-    fotoUrl:     json['foto_url'],
-  );
-}
-
-// ── Serviço de API ─────────────────────────────────────────────────────────────
-/// Plantas de quem está logado, na torre [torreId] (/torres/{id}/plantas).
-/// Se a torre passar para outra pessoa, ela não vê as plantas de quem saiu.
-class PlantaService {
-  static Uri _uri(String torreId, [String resto = '']) =>
-      BackendService.uriRaiz('/torres/$torreId/plantas$resto');
-
-  static Future<List<Plant>> listar(String torreId) async {
-    final response = await http.get(_uri(torreId), headers: Sessao.instance.headers);
-    if (response.statusCode == 200) {
-      final List data = jsonDecode(response.body);
-      return data.map((e) => Plant.fromJson(e)).toList();
-    }
-    throw Exception('Erro ao carregar plantas');
-  }
-
-  // Usa XFile para compatibilidade com Web e Mobile
-  static Future<Plant> criar({
-    required String torreId,
-    required String nome,
-    required String tipo,
-    required String dataPlantio,
-    XFile? fotoXFile,
-  }) async {
-    final request = http.MultipartRequest('POST', _uri(torreId))
-      ..headers.addAll(Sessao.instance.headers);
-    request.fields['nome']         = nome;
-    request.fields['tipo']         = tipo;
-    request.fields['data_plantio'] = dataPlantio;
-
-    if (fotoXFile != null) {
-      final bytes = await fotoXFile.readAsBytes();
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'foto',
-          bytes,
-          filename: fotoXFile.name,
-        ),
-      );
-    }
-
-    final response = await request.send();
-    final body     = await response.stream.bytesToString();
-
-    if (response.statusCode == 201) {
-      return Plant.fromJson(jsonDecode(body));
-    }
-    throw Exception('Erro ao cadastrar planta');
-  }
-
-  static Future<void> deletar(String torreId, int id) async {
-    final response = await http.delete(
-      _uri(torreId, '/$id'),
-      headers: Sessao.instance.headers,
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Erro ao remover planta');
-    }
-  }
-}
 
 // ── Tela de Plantas ────────────────────────────────────────────────────────────
 class PlantsScreen extends StatefulWidget {
@@ -528,7 +434,7 @@ class _PlantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fotoUrl = plant.fotoUrl != null ? '$_baseUrl${plant.fotoUrl}' : null;
+    final fotoUrl = PlantaService.urlDaFoto(plant);
 
     return Container(
       decoration: BoxDecoration(
@@ -545,7 +451,7 @@ class _PlantCard extends StatelessWidget {
               children: [
                 fotoUrl != null
                     ? Image.network(fotoUrl, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                        errorBuilder: (context, erro, pilha) => Container(
                           color: AeroColors.mint,
                           child: const Icon(Icons.eco, color: AeroColors.musgo, size: 40),
                         ),

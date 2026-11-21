@@ -16,6 +16,12 @@ class AppConfig {
     defaultValue: 'http://localhost:8000',
   );
 
+  /// Microsserviço de IA (microsservico_IA): orientação do HydroBot.
+  static const iaBaseUrl = String.fromEnvironment(
+    'IA_BASE_URL',
+    defaultValue: 'https://hidroponia-ia.azurewebsites.net',
+  );
+
   /// Client ID OAuth do tipo "Aplicativo da Web" no Google Cloud.
   /// Na web é o clientId; no Android vai como serverClientId (é ele que
   /// aparece no token que o servidor confere).

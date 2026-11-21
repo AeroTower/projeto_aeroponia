@@ -34,6 +34,29 @@ class Sessao {
   Future<void> entrarDev(String identificador) =>
       _entrar('/auth/dev', {'id': identificador});
 
+  /// Vincula a torre do adesivo à conta de quem está logado
+  /// (POST /torre/vincular no serviço de auth). O dono é quem manda o token:
+  /// o e-mail não vai no corpo, senão qualquer um vincularia em nome de outro.
+  /// Devolve o id da torre; erro do auth (400/409) vira [BackendException]
+  /// com a mensagem dele.
+  Future<String?> vincularTorre(String codigo) async {
+    final resposta = await http
+        .post(
+          Uri.parse('${AppConfig.authBaseUrl}/torre/vincular'),
+          headers: {'Content-Type': 'application/json', ...headers},
+          body: jsonEncode({'codigo': codigo}),
+        )
+        .timeout(const Duration(seconds: 30));
+    final corpo = jsonDecode(resposta.body) as Map<String, dynamic>;
+    if (resposta.statusCode != 200 && resposta.statusCode != 201) {
+      throw BackendException(
+        corpo['detail']?.toString() ?? 'Erro ao vincular torre.',
+        statusCode: resposta.statusCode,
+      );
+    }
+    return corpo['torre_id'] as String?;
+  }
+
   /// Tira a torre da conta (DELETE /torre/{id}/vinculo no serviço de auth).
   /// O código do adesivo volta a valer: dá para vincular de novo, ou passar
   /// a torre para outra pessoa. O Backend fica sabendo pelo RabbitMQ.

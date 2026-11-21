@@ -6,16 +6,24 @@ import '../services/backend_service.dart';
 import '../services/sessao.dart';
 import '../theme/app_theme.dart';
 import '../widgets/aero_logo.dart';
-import '../widgets/gauge_card.dart';
-import '../widgets/nivel_agua_card.dart';
 import 'chat_bot.dart';
 import 'login_screen.dart';
+import 'painel/aviso_conexao.dart';
+import 'painel/barra_status.dart';
+import 'painel/cabecalho_painel.dart';
+import 'painel/cartao_wifi.dart';
+import 'painel/componentes.dart';
+import 'painel/faixa_alertas.dart';
+import 'painel/grade_sensores.dart';
+import 'painel/painel_motor.dart';
 import 'plants_screen.dart';
 import 'vincular_torre_screen.dart';
 
 const _intervalo = Duration(seconds: 3);
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ── Painel da torre ─────────────────────────────────────────────────────────
+// Esta tela cuida do estado (leituras, presença, comandos da bomba) e monta
+// as partes que ficam em painel/: cada uma só desenha o que recebe.
 
 class DashboardScreen extends StatefulWidget {
   /// Torre exibida. Nula = modo antigo (torre única, rotas sem login).
@@ -96,6 +104,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   /// Mostra o cartão de Wi-Fi quando a torre não está mandando dados.
   bool get _mostrarCartaoWifi => widget.torre != null && _torreOnline != true;
+
+  SituacaoPainel get _situacao => SituacaoPainel.de(
+    erroDeConexao: _erroConexao != null,
+    torreSumiu: _mostrarCartaoWifi,
+    conectado: _conectado,
+  );
 
   Future<void> _buscarDados() async {
     try {
@@ -251,32 +265,61 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildSectionHeader(),
+                CabecalhoPainel(
+                  situacao: _situacao,
+                  ultimaAtualizacao: _ultimaAtualizacao,
+                  intervalo: _intervalo,
+                ),
                 const SizedBox(height: 20),
 
                 // Faixa de alertas críticos
                 if (_alertas.isNotEmpty) ...[
-                  _buildAlertBanner(),
+                  FaixaAlertas(alertas: _alertas),
                   const SizedBox(height: 16),
                 ],
 
                 // Torre sem internet (nunca configurada ou caiu)
                 if (_mostrarCartaoWifi) ...[
-                  _buildCartaoWifi(),
+                  CartaoWifi(
+                    torre: widget.torre!,
+                    nuncaConectou: !_torreJaConectou,
+                  ),
                   const SizedBox(height: 16),
                 ],
 
                 // Aviso de erro de conexão
                 if (_erroConexao != null) ...[
-                  _buildConnectionError(),
+                  AvisoConexao(
+                    mensagem: _erroConexao!,
+                    onTentarDeNovo: _buscarDados,
+                  ),
                   const SizedBox(height: 16),
                 ],
 
-                _buildGaugeGrid(),
+                GradeSensores(
+                  tem: _tem,
+                  ph: _ph,
+                  tds: _ec,
+                  temperatura: _tempAgua,
+                  nivelAgua: _nivelAgua,
+                ),
                 const SizedBox(height: 16),
-                _buildMotorPanel(),
+                PainelMotor(
+                  motorStatus: _motorStatus,
+                  erro: _erroMotor,
+                  enviando: _enviandoComandoMotor,
+                  minutosLigado: _minutosLigadoCtrl,
+                  minutosDesligado: _minutosDesligadoCtrl,
+                  onAtualizar: _buscarStatusMotor,
+                  onIniciar: _iniciarCicloPersonalizado,
+                  onDesligar: _desligarMotor,
+                ),
                 const SizedBox(height: 16),
-                _buildStatusBar(),
+                BarraStatus(
+                  erroConexao: _erroConexao,
+                  conectado: _conectado,
+                  temAvisoAcima: _alertas.isNotEmpty || _mostrarCartaoWifi,
+                ),
               ],
             ),
           ),
@@ -334,39 +377,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       actions: [
         // Indicador de conexão animado
-        AnimatedBuilder(
-          animation: _pulseController,
-          builder: (_, __) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _conectado
-                    ? AeroColors.musgo.withValues(
-                        alpha: 0.4 + 0.6 * _pulseController.value,
-                      )
-                    : AeroColors.erro.withValues(alpha: 0.6),
-                boxShadow: _conectado
-                    ? [
-                        BoxShadow(
-                          color: AeroColors.musgo.withValues(
-                            alpha: 0.3 * _pulseController.value,
-                          ),
-                          blurRadius: 8,
-                          spreadRadius: 2,
-                        ),
-                      ]
-                    : null,
-              ),
-            ),
-          ),
-        ),
+        IndicadorConexao(pulso: _pulseController, conectado: _conectado),
         const SizedBox(width: 12),
         // A IA analisa pH, temperatura e umidade: só faz sentido no kit Pro.
         if (_tem('ph')) ...[
-          _AppBarButton(
+          AppBarButton(
             icon: Icons.smart_toy_outlined,
             label: 'IA',
             onPressed: () => Navigator.push(
@@ -384,7 +399,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           const SizedBox(width: 8),
         ],
         if (widget.torre != null) ...[
-          _AppBarButton(
+          AppBarButton(
             icon: Icons.eco_outlined,
             label: 'Plantas',
             onPressed: () => Navigator.push(
@@ -492,879 +507,5 @@ class _DashboardScreenState extends State<DashboardScreen>
       backgroundColor: erro ? AeroColors.erro : AeroColors.musgo,
       behavior: SnackBarBehavior.floating,
     ));
-  }
-
-  // ── Cabeçalho da seção ─────────────────────────────────────────────────────
-
-  Widget _buildSectionHeader() {
-    final hora = _ultimaAtualizacao != null
-        ? '${_ultimaAtualizacao!.hour.toString().padLeft(2, '0')}:'
-              '${_ultimaAtualizacao!.minute.toString().padLeft(2, '0')}:'
-              '${_ultimaAtualizacao!.second.toString().padLeft(2, '0')}'
-        : '--:--:--';
-
-    // Etiqueta + título grande + linha de informações: mesma hierarquia do
-    // topo da página inicial, sem caixa em volta.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _StatusBadge(
-          // Servidor respondendo não quer dizer torre conectada.
-          label: _erroConexao != null
-              ? 'Offline'
-              : _mostrarCartaoWifi
-              ? 'Torre sem conexão'
-              : _conectado
-              ? 'Online'
-              : 'Conectando',
-          color: _erroConexao != null
-              ? AeroColors.erro
-              : _mostrarCartaoWifi
-              ? AeroColors.alerta
-              : _conectado
-              ? AeroColors.musgo
-              : AeroColors.alerta,
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Sensores em tempo real',
-          style: TextStyle(
-            fontFamily: AeroFonts.titulo,
-            color: AeroColors.tinta,
-            fontSize: 32,
-            fontWeight: FontWeight.w900,
-            height: 1.1,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _MetaPill(
-              icon: Icons.schedule_rounded,
-              label: 'Atualizado às $hora',
-            ),
-            _MetaPill(
-              icon: Icons.autorenew_rounded,
-              label: 'Intervalo ${_intervalo.inSeconds}s',
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // ── Faixa de alertas ───────────────────────────────────────────────────────
-
-  Widget _buildAlertBanner() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AeroColors.erroFundo,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Cabeçalho da faixa
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: AeroColors.erro.withValues(alpha: 0.15),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.warning_rounded,
-                  color: AeroColors.erro,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${_alertas.length} alerta${_alertas.length > 1 ? 's' : ''} ativo${_alertas.length > 1 ? 's' : ''}',
-                  style: const TextStyle(
-                    color: AeroColors.erro,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Lista de alertas
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: _alertas
-                  .map(
-                    (a) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '›  ',
-                            style: TextStyle(
-                              color: AeroColors.erro,
-                              fontSize: 14,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              a,
-                              style: const TextStyle(
-                                color: AeroColors.tinta,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Cartão "Conectar a torre ao Wi-Fi" ─────────────────────────────────────
-
-  Widget _buildCartaoWifi() {
-    final torre = widget.torre!;
-    final nuncaConectou = !_torreJaConectou;
-    final titulo = nuncaConectou
-        ? 'Conecte sua torre ao Wi-Fi'
-        : 'Sua torre está sem conexão';
-    final resumo = nuncaConectou
-        ? 'A torre ainda não mandou nenhuma leitura. Ela já rega sozinha; '
-              'para ver os dados aqui, conecte-a à internet:'
-        : 'A torre parou de mandar dados. Ela continua regando no último '
-              'ciclo. Confira se ela está ligada na tomada e se o Wi-Fi da '
-              'casa funciona. Se você trocou o roteador ou a senha, '
-              'configure de novo:';
-    final passos = <String>[
-      if (!nuncaConectou)
-        'Segure o botão BOOT da placa por 5 segundos para a torre esquecer o Wi-Fi antigo.',
-      'No celular, abra o Wi-Fi e conecte na rede "${torre.redeConfiguracao}" (a senha está no manual da torre).',
-      'A página de configuração abre sozinha. Se não abrir, acesse 192.168.4.1 no navegador.',
-      'Escolha o Wi-Fi da sua casa, digite a senha e salve.',
-      'Volte a este app: em até um minuto a torre aparece online.',
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AeroColors.aguaFundo,
-        borderRadius: BorderRadius.circular(AeroRadius.card),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                nuncaConectou
-                    ? Icons.wifi_find_rounded
-                    : Icons.wifi_off_rounded,
-                color: AeroColors.agua,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  titulo,
-                  style: const TextStyle(
-                    fontFamily: AeroFonts.titulo,
-                    color: AeroColors.tinta,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            resumo,
-            style: const TextStyle(
-              color: AeroColors.tintaSuave,
-              fontSize: 13,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 10),
-          for (var i = 0; i < passos.length; i++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${i + 1}.',
-                    style: const TextStyle(
-                      color: AeroColors.agua,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      passos[i],
-                      style: const TextStyle(
-                        color: AeroColors.tinta,
-                        fontSize: 13,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          const SizedBox(height: 4),
-          const Text(
-            'A torre só funciona em redes 2,4 GHz. Redes com página de login '
-            '(universidade, hotel) não funcionam: use o roteador do celular.',
-            style: TextStyle(
-              color: AeroColors.tintaSuave,
-              fontSize: 12,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Erro de conexão ────────────────────────────────────────────────────────
-
-  Widget _buildConnectionError() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AeroColors.alertaFundo,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.wifi_off_rounded,
-            color: AeroColors.alerta,
-            size: 18,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _erroConexao!,
-              style: const TextStyle(color: AeroColors.alerta, fontSize: 13),
-            ),
-          ),
-          TextButton(
-            onPressed: _buscarDados,
-            style: TextButton.styleFrom(
-              foregroundColor: AeroColors.alerta,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: const Text(
-              'Tentar novamente',
-              style: TextStyle(fontSize: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Grid de Gauges ─────────────────────────────────────────────────────────
-
-  Widget _buildGaugeGrid() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 720;
-        final crossAxisCount = compact
-            ? 2
-            : (constraints.maxWidth / 260).floor().clamp(2, 4);
-        // Altura fixa, e não proporção: com proporção, o card ficava baixo
-        // demais em certas larguras e o conteúdo estourava. Acompanha o
-        // tamanho de fonte escolhido no aparelho.
-        final alturaCard = MediaQuery.textScalerOf(context).scale(176);
-        final cards = _cardsDoKit();
-        if (cards.isEmpty) return _buildSemSensores();
-        return GridView(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-            mainAxisExtent: alturaCard,
-          ),
-          children: cards,
-        );
-      },
-    );
-  }
-
-  /// Só os cards dos sensores que o kit tem. A bomba fica sempre.
-  List<Widget> _cardsDoKit() {
-    return [
-      if (_tem('ph'))
-        GaugeCard(
-          title: "pH",
-          value: _ph,
-          unit: "",
-          min: 0,
-          max: 14,
-          icon: Icons.water_drop_outlined,
-          accentColor: AeroColors.agua,
-          ranges: [
-            GaugeRange(
-              startValue: 0,
-              endValue: 5.5,
-              color: AeroColors.erro,
-              rotulo: 'fora do ideal',
-            ),
-            GaugeRange(
-              startValue: 5.5,
-              endValue: 6.5,
-              color: AeroColors.musgo,
-              rotulo: 'ideal',
-            ),
-            GaugeRange(
-              startValue: 6.5,
-              endValue: 14,
-              color: AeroColors.erro,
-              rotulo: 'fora do ideal',
-            ),
-          ],
-        ),
-      if (_tem('tds'))
-        GaugeCard(
-          title: "TDS",
-          value: _ec,
-          unit: "ppm",
-          min: 0,
-          max: 2000,
-          icon: Icons.science_outlined,
-          accentColor: AeroColors.terracotaEscuro,
-          ranges: [
-            GaugeRange(
-              startValue: 0,
-              endValue: 560,
-              color: AeroColors.erro,
-              rotulo: 'fora do ideal',
-            ),
-            GaugeRange(
-              startValue: 560,
-              endValue: 1260,
-              color: AeroColors.musgo,
-              rotulo: 'ideal',
-            ),
-            GaugeRange(
-              startValue: 1260,
-              endValue: 2000,
-              color: AeroColors.erro,
-              rotulo: 'fora do ideal',
-            ),
-          ],
-        ),
-      if (_tem('clima'))
-        GaugeCard(
-          title: "Temperatura",
-          value: _tempAgua,
-          unit: "°C",
-          min: 10,
-          max: 35,
-          icon: Icons.thermostat_rounded,
-          accentColor: AeroColors.terracota,
-          ranges: [
-            GaugeRange(
-              startValue: 10,
-              endValue: 20,
-              color: AeroColors.erro,
-              rotulo: 'fora do ideal',
-            ),
-            GaugeRange(
-              startValue: 20,
-              endValue: 28,
-              color: AeroColors.musgo,
-              rotulo: 'ideal',
-            ),
-            GaugeRange(
-              startValue: 28,
-              endValue: 35,
-              color: AeroColors.erro,
-              rotulo: 'fora do ideal',
-            ),
-          ],
-        ),
-      // Nivel de tanque nao e grandeza que oscila em torno de um
-      // ideal como pH ou temperatura: o que importa e quanto ainda
-      // resta. A ampola mostra isso de imediato; o medidor circular
-      // obrigava a interpretar um ponteiro.
-      if (_tem('nivel')) NivelAguaCard(valor: _nivelAgua, minimoAlerta: 35),
-    ];
-  }
-
-  /// Kit Básico: não há sensores, só a rega automática.
-  Widget _buildSemSensores() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AeroColors.areia,
-        borderRadius: BorderRadius.circular(AeroRadius.card),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.water_rounded, color: AeroColors.musgo, size: 28),
-          SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              'Sua torre rega sozinha no ciclo abaixo. '
-              'Sensor de nível (Kit Completo) e pH, nutrientes e clima '
-              '(Kit Pro) podem ser adicionados depois.',
-              style: TextStyle(
-                color: AeroColors.tintaSuave,
-                fontSize: 13,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMotorPanel() {
-    final status = _motorStatus?.resumo ?? 'Aguardando status do motor';
-    final atualizadoEm = _motorStatus?.recebidoEm;
-    final hora = atualizadoEm != null
-        ? '${atualizadoEm.hour.toString().padLeft(2, '0')}:'
-              '${atualizadoEm.minute.toString().padLeft(2, '0')}:'
-              '${atualizadoEm.second.toString().padLeft(2, '0')}'
-        : '--:--:--';
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AeroColors.mint,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(
-                  color: AeroColors.mintForte,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.water_rounded,
-                  color: AeroColors.musgo,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Controle da bomba',
-                      style: TextStyle(
-                        fontFamily: AeroFonts.titulo,
-                        color: AeroColors.tinta,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      'Status: $status | Atualizado as $hora',
-                      style: const TextStyle(
-                        color: AeroColors.tintaSuave,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: 'Atualizar status',
-                onPressed: _buscarStatusMotor,
-                color: AeroColors.tintaSuave,
-                icon: const Icon(Icons.refresh, size: 18),
-              ),
-            ],
-          ),
-          if (_erroMotor != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _erroMotor!,
-              style: const TextStyle(color: AeroColors.alerta, fontSize: 12),
-            ),
-          ],
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 620;
-              final ligadoField = _MotorCycleField(
-                controller: _minutosLigadoCtrl,
-                label: 'Ligado',
-                icon: Icons.power_settings_new_rounded,
-                enabled: !_enviandoComandoMotor,
-              );
-              final desligadoField = _MotorCycleField(
-                controller: _minutosDesligadoCtrl,
-                label: 'Desligado',
-                icon: Icons.power_off_rounded,
-                enabled: !_enviandoComandoMotor,
-              );
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  compact
-                      ? Column(
-                          children: [
-                            ligadoField,
-                            const SizedBox(height: 10),
-                            desligadoField,
-                          ],
-                        )
-                      : Row(
-                          children: [
-                            Expanded(child: ligadoField),
-                            const SizedBox(width: 10),
-                            Expanded(child: desligadoField),
-                          ],
-                        ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      _MotorButton(
-                        icon: Icons.play_arrow_rounded,
-                        label: 'Iniciar ciclo',
-                        enabled: !_enviandoComandoMotor,
-                        onPressed: _iniciarCicloPersonalizado,
-                      ),
-                      _MotorButton(
-                        icon: Icons.stop_rounded,
-                        label: 'Desligar',
-                        enabled: !_enviandoComandoMotor,
-                        isDanger: true,
-                        onPressed: _desligarMotor,
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-  // ── Barra de status inferior ───────────────────────────────────────────────
-
-  Widget _buildStatusBar() {
-    if (_erroConexao != null) return _statusErro();
-    if (!_conectado) return _statusCarregando();
-    // Alerta ou torre sem conexão já aparecem acima: dizer "tudo certo" aqui
-    // contradiria esses avisos.
-    if (_alertas.isNotEmpty || _mostrarCartaoWifi)
-      return const SizedBox.shrink();
-    return _statusOk();
-  }
-
-  Widget _statusCarregando() {
-    return _StatusContainer(
-      color: AeroColors.aguaFundo,
-      borderColor: AeroColors.agua.withValues(alpha: 0.3),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: const AlwaysStoppedAnimation(AeroColors.agua),
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Text(
-            'Buscando dados do backend…',
-            style: TextStyle(color: AeroColors.agua, fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusErro() {
-    return _StatusContainer(
-      color: AeroColors.erroFundo,
-      borderColor: AeroColors.erro.withValues(alpha: 0.3),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: AeroColors.erro, size: 18),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              _erroConexao!,
-              style: const TextStyle(color: AeroColors.erro, fontSize: 13),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusOk() {
-    return _StatusContainer(
-      color: AeroColors.mint,
-      borderColor: AeroColors.musgo.withValues(alpha: 0.3),
-      child: const Row(
-        children: [
-          Icon(Icons.check_circle_outline, color: AeroColors.musgo, size: 18),
-          SizedBox(width: 12),
-          Text(
-            'Todos os sistemas operacionais',
-            style: TextStyle(color: AeroColors.musgo, fontSize: 13),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Widgets auxiliares ─────────────────────────────────────────────────────────
-
-class _StatusContainer extends StatelessWidget {
-  final Widget child;
-  final Color color;
-  final Color borderColor;
-
-  const _StatusContainer({
-    required this.child,
-    required this.color,
-    required this.borderColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _MetaPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _MetaPill({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AeroColors.areia,
-        borderRadius: BorderRadius.circular(AeroRadius.pilula),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AeroColors.tintaSuave, size: 14),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(color: AeroColors.tintaSuave, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final String label;
-  final Color color;
-
-  const _StatusBadge({required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AeroRadius.pilula),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MotorButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool enabled;
-  final bool isDanger;
-  final VoidCallback onPressed;
-
-  const _MotorButton({
-    required this.icon,
-    required this.label,
-    required this.enabled,
-    required this.onPressed,
-    this.isDanger = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const texto = TextStyle(fontSize: 14, fontWeight: FontWeight.w700);
-    const espaco = EdgeInsets.symmetric(horizontal: 18, vertical: 12);
-
-    // A ação principal é cheia; "Desligar" fica contornado para não competir.
-    if (isDanger) {
-      return OutlinedButton.icon(
-        onPressed: enabled ? onPressed : null,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AeroColors.erro,
-          side: const BorderSide(color: AeroColors.erro),
-          padding: espaco,
-          shape: const StadiumBorder(),
-        ),
-        icon: Icon(icon, size: 18),
-        label: const Text('Desligar', style: texto),
-      );
-    }
-
-    return ElevatedButton.icon(
-      onPressed: enabled ? onPressed : null,
-      style: ElevatedButton.styleFrom(padding: espaco),
-      icon: Icon(icon, size: 18),
-      label: Text(label, style: texto),
-    );
-  }
-}
-
-class _MotorCycleField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final IconData icon;
-  final bool enabled;
-
-  const _MotorCycleField({
-    required this.controller,
-    required this.label,
-    required this.icon,
-    required this.enabled,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      keyboardType: TextInputType.number,
-      style: const TextStyle(color: AeroColors.tinta, fontSize: 14),
-      cursorColor: AeroColors.musgo,
-      decoration: InputDecoration(
-        labelText: '$label (min)',
-        prefixIcon: Icon(icon, color: AeroColors.tintaSuave, size: 18),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
-      ),
-    );
-  }
-}
-
-class _AppBarButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-
-  const _AppBarButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final borda = const BorderSide(color: AeroColors.tinta, width: 0.6);
-
-    if (MediaQuery.sizeOf(context).width < 480) {
-      return IconButton(
-        tooltip: label,
-        onPressed: onPressed,
-        style: IconButton.styleFrom(
-          foregroundColor: AeroColors.tinta,
-          side: borda,
-        ),
-        icon: Icon(icon, size: 18),
-      );
-    }
-
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AeroColors.tinta,
-        side: borda,
-        shape: const StadiumBorder(),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-      icon: Icon(icon, size: 16),
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-      ),
-    );
   }
 }

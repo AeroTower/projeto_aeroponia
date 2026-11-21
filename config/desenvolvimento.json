@@ -1,5 +1,6 @@
 {
   "AUTH_BASE_URL": "http://localhost:8000",
+  "IA_BASE_URL": "https://hidroponia-ia.azurewebsites.net",
   "BACKEND_BASE_URL": "http://localhost:8001",
   "GOOGLE_WEB_CLIENT_ID": "",
   "LOGIN_DEV": true

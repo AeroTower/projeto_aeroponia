@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 
-import '../config/app_config.dart';
+import '../services/backend_service.dart';
 import '../services/sessao.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
@@ -25,31 +23,18 @@ class _VincularTorreScreenState extends State<VincularTorreScreen> {
     super.dispose();
   }
 
-Future<void> _vincularTorre() async {
-  final tokenTorre = _tokenController.text.trim();
+  Future<void> _vincularTorre() async {
+    final tokenTorre = _tokenController.text.trim();
 
-  if (tokenTorre.isEmpty) {
-    _mostrarErro('Por favor, insira o código do adesivo da AeroTower.');
-    return;
-  }
+    if (tokenTorre.isEmpty) {
+      _mostrarErro('Por favor, insira o código do adesivo da AeroTower.');
+      return;
+    }
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  try {
-    // Quem vincula é quem está logado (token no header). O e-mail não vai
-    // mais no corpo: antes, qualquer um podia vincular em nome de outro.
-    final response = await http.post(
-      Uri.parse('${AppConfig.authBaseUrl}/torre/vincular'),
-      headers: {
-        'Content-Type': 'application/json',
-        ...Sessao.instance.headers,
-      },
-      body: jsonEncode({'codigo': tokenTorre}),
-    ).timeout(const Duration(seconds: 30));
-
-    final Map<String, dynamic> bodyData = jsonDecode(response.body);
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
+    try {
+      final torreId = await Sessao.instance.vincularTorre(tokenTorre);
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,20 +49,18 @@ Future<void> _vincularTorre() async {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => TorresScreen(aguardarTorreId: bodyData['torre_id'] as String?),
+          builder: (_) => TorresScreen(aguardarTorreId: torreId),
         ),
       );
-    } else {
-      // Exibe a mensagem de erro exata retornada pela API (HTTP 400 / 409)
-      final String mensagemErro = bodyData['detail'] ?? 'Erro ao vincular torre.';
-      _mostrarErro(mensagemErro);
+    } on BackendException catch (e) {
+      // Mensagem exata do serviço de auth (HTTP 400 / 409)
+      _mostrarErro(e.message);
+    } catch (e) {
+      _mostrarErro('Erro de conexão com o servidor: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-  } catch (e) {
-    _mostrarErro('Erro de conexão com o servidor: $e');
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
 
   void _sair() {
     Sessao.instance.sair();
