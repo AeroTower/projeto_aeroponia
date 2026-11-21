@@ -2,6 +2,7 @@
 // servidor falso (auth, Backend). Confere as interfaces entre as partes.
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hidro_app/config/app_config.dart';
 import 'package:hidro_app/main.dart';

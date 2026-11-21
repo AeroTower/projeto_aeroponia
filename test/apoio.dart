@@ -188,6 +188,7 @@ class GaleriaFalsa extends ImagePickerPlatform {
     // PNG 1x1 transparente
     base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='),
     name: 'alface.png',
+    path: 'alface.png', // no Dart nativo, o nome do arquivo sai do path
     mimeType: 'image/png',
   );
 

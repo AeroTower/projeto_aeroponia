@@ -27,7 +27,7 @@ void main() {
     });
     final pedido = jsonDecode(servidor.para('POST /analisar-cultivo').single.body);
     expect(pedido, {'cultura': 'Manjericão', 'ph': 7.4, 'temperatura': 22.5, 'umidade': 60});
-    expect(find.text('Baixe o pH para 6,0'), findsOneWidget);
+    expect(find.textContaining('Baixe o pH para 6,0', findRichText: true), findsOneWidget);
     expect(find.textContaining('pH: 7.4', findRichText: true), findsOneWidget);
   });
 

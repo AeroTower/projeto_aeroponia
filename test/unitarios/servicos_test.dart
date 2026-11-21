@@ -191,7 +191,7 @@ void main() {
         expect(criada.id, 9);
         await PlantaService.criar(
           torreId: idTorre, nome: 'Rúcula', tipo: 'Folhosa', dataPlantio: '2026-11-21',
-          fotoXFile: XFile.fromData(utf8.encode('img'), name: 'rucula.jpg'),
+          fotoXFile: XFile.fromData(utf8.encode('img'), name: 'rucula.jpg', path: 'rucula.jpg'),
         );
         await PlantaService.deletar(idTorre, 9);
       });

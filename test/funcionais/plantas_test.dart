@@ -1,4 +1,6 @@
 // Testes funcionais da tela de plantas.
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hidro_app/screens/plants_screen.dart';
@@ -70,11 +72,12 @@ void main() {
       await tester.tap(find.text('Salvar planta'));
       await assentar(tester);
     });
-    final envio = servidor.para('POST /torres/$idTorre/plantas').single;
-    expect(envio.body, contains('Rúcula'));
-    expect(envio.body, contains('Folhosa'));
-    expect(envio.body, contains('filename="alface.png"'));
-    expect(RegExp(r'\d{4}-\d{2}-\d{2}').hasMatch(envio.body), isTrue);
+    // O corpo tem a foto (binário): lê como texto tolerante.
+    final corpo = utf8.decode(servidor.para('POST /torres/$idTorre/plantas').single.bodyBytes, allowMalformed: true);
+    expect(corpo, contains('Rúcula'));
+    expect(corpo, contains('Folhosa'));
+    expect(corpo, contains('filename="alface.png"'));
+    expect(RegExp(r'\d{4}-\d{2}-\d{2}').hasMatch(corpo), isTrue);
     expect(find.text('Rúcula'), findsOneWidget);
   });
 
