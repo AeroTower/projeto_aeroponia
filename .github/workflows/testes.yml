@@ -24,6 +24,17 @@ jobs:
       - name: Dependencias
         run: flutter pub get
 
+      # Analise estatica do Dart (regras em analysis_options.yaml). O total
+      # de avisos vai para o resumo, como metrica de qualidade.
+      - name: Analise estatica (flutter analyze)
+        run: |
+          set -o pipefail
+          flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analise.txt
+          echo "### Análise estática" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 40 analise.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
       - name: Testes e cobertura
         run: >
           flutter test --coverage --file-reporter json:relatorio-testes.json
