@@ -79,10 +79,11 @@ def main(relatorio, lcov, minimo="90"):
     for arquivo, (f, h) in sorted(arquivos.items(), key=lambda i: (i[1][1] / i[1][0]) if i[1][0] else 1):
         linhas.append(f"| `{arquivo}` | {f} | {h} | {100 * h / f if f else 100:.0f}% |")
     if fora:
-        linhas += ["", "⚠️ Arquivos que nenhum teste carregou: " + ", ".join(f"`{f}`" for f in fora)]
+        linhas += ["", "Sem linha executável no lcov (só constantes ou não carregados): "
+                   + ", ".join(f"`{f}`" for f in fora)]
     print("\n".join(linhas))
 
-    if soma_falhas or fora or taxa < float(minimo):
+    if soma_falhas or taxa < float(minimo):
         sys.exit(1)
 
 

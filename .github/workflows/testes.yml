@@ -25,7 +25,9 @@ jobs:
         run: flutter pub get
 
       - name: Testes e cobertura
-        run: flutter test --coverage --file-reporter json:relatorio-testes.json
+        run: >
+          flutter test --coverage --file-reporter json:relatorio-testes.json
+          --dart-define-from-file=config/desenvolvimento.json
 
       - name: Resumo por tipo e meta de 90%
         if: always()
