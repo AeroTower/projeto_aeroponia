@@ -1,0 +1,49 @@
+# Roda todos os testes em cada pull request e em cada push na main.
+# Falha se algum teste falhar ou se a cobertura ficar abaixo de 90%.
+# A tabela por tipo e a cobertura por arquivo aparecem na aba Actions; o
+# relatorio HTML de cobertura fica em Artifacts (evidencia para o relatorio).
+name: Testes
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dependencias
+        run: flutter pub get
+
+      - name: Testes e cobertura
+        run: flutter test --coverage --file-reporter json:relatorio-testes.json
+
+      - name: Resumo por tipo e meta de 90%
+        if: always()
+        run: |
+          set -o pipefail
+          python3 .github/resumo_flutter.py relatorio-testes.json coverage/lcov.info 90 | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Relatorio HTML de cobertura
+        if: always()
+        run: |
+          sudo apt-get install -y -qq lcov > /dev/null
+          genhtml -q coverage/lcov.info -o coverage/html || true
+
+      - name: Evidencias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidencias-testes
+          path: |
+            coverage/
+            relatorio-testes.json
