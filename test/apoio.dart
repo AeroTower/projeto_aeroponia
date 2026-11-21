@@ -230,3 +230,11 @@ Future<void> desmontar(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox());
   await tester.pump();
 }
+
+/// Espera o aviso (SnackBar) terminar de entrar, ficar os 4 s e sair, para o
+/// próximo aviso não ficar na fila atrás dele.
+Future<void> esperarAvisoSumir(WidgetTester tester) async {
+  await assentar(tester);
+  await tester.pump(const Duration(seconds: 5));
+  await assentar(tester);
+}

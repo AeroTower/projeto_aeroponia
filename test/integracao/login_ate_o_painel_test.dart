@@ -164,13 +164,13 @@ void main() {
       await tester.tap(find.text('Conectar Torre'));          // vazio
       await tester.pump();
       expect(find.textContaining('insira o código'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 5));
+      await esperarAvisoSumir(tester);
 
       await tester.enterText(find.byType(TextField), 'K9X2-7QHM');
       await tester.tap(find.text('Conectar Torre'));
       await assentar(tester);
       expect(find.textContaining('associada a outro usuário'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 5));
+      await esperarAvisoSumir(tester);
 
       servidor.caiu('POST /torre/vincular');
       await tester.tap(find.text('Conectar Torre'));
