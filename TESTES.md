@@ -111,3 +111,25 @@ Plataforma de todos: Flutter estável, `flutter_test`, Ubuntu (GitHub Actions); 
 | Obtido | Conforme esperado |
 | Status | ✅ Sucesso |
 | Teste | `test/seguranca/seguranca_test.dart` › "o token de sessão não vai para o serviço de IA (terceiro)" |
+
+## Testes individuais que acham defeitos (Fernão, parte do Caio)
+
+Estes testes afirmam o comportamento **correto** e por isso **falham** enquanto
+o defeito existir. Têm a tag `defeito`: ficam fora do passo de cobertura e
+rodam num passo próprio do CI ("Testes que acham defeitos"), que aparece em
+vermelho sem derrubar o deploy. Quando o defeito for corrigido, o teste passa
+e a tag pode sair.
+
+```bash
+flutter test --tags defeito --dart-define-from-file=config/desenvolvimento.json
+```
+
+| ID | Tipo | Defeito que o teste mostra | Onde |
+|---|---|---|---|
+| CT-INT-03 | Integração | O app manda à IA o **apelido** da planta como "cultura", no lugar da espécie (`tipo`); apelido com mais de 100 letras faz a IA recusar o pedido | `test/integracao/individual_app_ia_test.dart` |
+| CT-FUNC-03 | Funcional | Ciclo de 2000 min: a tela mostra o erro técnico do FastAPI, em inglês | `test/funcionais/individual_ciclo_fora_da_faixa_test.dart` |
+| CT-ACEIT-03 | Aceitação (BDD) | HydroBot sem leitura mostra "pH: NULO", mas manda pH 7,5, 28,5 °C e 45% para a IA | `test/aceitacao/individual_hydrobot_sem_leitura_test.dart` |
+| CT-DESEMP-03 | Desempenho | Tempo de carregamento do app e da loja no celular (Lighthouse) | `testes-web/README.md` |
+| CT-SEG-03 | Segurança | Varredura passiva com o ZAP e teste de clickjacking do app e da loja | `testes-web/README.md` e `testes-web/clickjacking.html` |
+
+O CT-UNIT-03 (busca da loja sem acento) fica no repositório `aerotower-loja`.
