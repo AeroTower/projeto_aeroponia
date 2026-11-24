@@ -27,13 +27,38 @@ dynamic decodificarResposta(http.Response response) {
     return body;
   }
 
-  final detail = body is Map ? body['detail']?.toString() : null;
+  final dynamic bruto = body is Map ? body['detail'] : null;
+  // 422 do FastAPI/Pydantic: lista de erros técnicos, em inglês. Antes ia
+  // crua para a tela ("[{type: less_than_equal, loc: [...], msg: ...}]").
+  final detail = bruto is List ? mensagemDeValidacao(bruto) : bruto?.toString();
   throw BackendException(
     detail?.isNotEmpty == true
         ? detail!
         : 'Backend retornou erro ${response.statusCode}.',
     statusCode: response.statusCode,
   );
+}
+
+/// Traduz a lista de erros de validação do FastAPI para uma frase simples.
+String mensagemDeValidacao(List<dynamic> erros) {
+  final partes = erros.whereType<Map>().map((erro) {
+    final loc = erro['loc'];
+    final campo = loc is List && loc.isNotEmpty ? loc.last.toString() : 'campo';
+    final ctx = erro['ctx'] is Map ? erro['ctx'] as Map : const {};
+    switch (erro['type']) {
+      case 'less_than_equal':
+        return '$campo deve ser no máximo ${ctx['le']}';
+      case 'greater_than_equal':
+        return '$campo deve ser no mínimo ${ctx['ge']}';
+      case 'string_too_long':
+        return '$campo pode ter no máximo ${ctx['max_length']} caracteres';
+      case 'missing':
+        return '$campo é obrigatório';
+      default:
+        return '$campo com valor inválido';
+    }
+  }).toList();
+  return partes.isEmpty ? 'Dados inválidos.' : 'Dados inválidos: ${partes.join('; ')}.';
 }
 
 class BackendService {

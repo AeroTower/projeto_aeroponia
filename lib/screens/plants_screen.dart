@@ -266,7 +266,13 @@ class _AddPlantModalState extends State<_AddPlantModal> {
   bool    _salvando = false;
   String? _erro;
 
-  final _tipos = ['Folhosa', 'Frutífera', 'Tempero', 'Raiz', 'Outro'];
+  // O tipo é a ESPÉCIE: é o que vai para a IA como "cultura" (o nome é o
+  // apelido que o dono dá). Antes eram categorias ("Folhosa"...) e o app
+  // mandava o apelido para a IA.
+  static const _tipos = [
+    'Alface', 'Rúcula', 'Agrião', 'Couve', 'Espinafre', 'Manjericão', 'Hortelã',
+    'Salsa', 'Cebolinha', 'Coentro', 'Morango', 'Tomate-cereja', 'Outra',
+  ];
 
   Future<void> _selecionarFoto() async {
     final picker = ImagePicker();
@@ -361,7 +367,8 @@ class _AddPlantModalState extends State<_AddPlantModal> {
             ),
             const SizedBox(height: 16),
 
-            _buildField(controller: _nomeCtrl, label: 'Nome da planta', hint: 'Ex: Alface 01'),
+            // 100 caracteres: o mesmo limite do Back-End e da IA.
+            _buildField(controller: _nomeCtrl, label: 'Nome da planta', hint: 'Ex: Alface 01', maxLength: 100),
             const SizedBox(height: 12),
 
             DropdownButtonFormField<String>(
@@ -413,8 +420,10 @@ class _AddPlantModalState extends State<_AddPlantModal> {
     required String label,
     required String hint,
     IconData? suffixIcon,
+    int? maxLength,
   }) => TextFormField(
     controller: controller,
+    maxLength: maxLength,
     style: const TextStyle(color: AeroColors.tinta),
     decoration: _inputDecoration(label, hint: hint, suffixIcon: suffixIcon),
   );

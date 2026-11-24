@@ -5,9 +5,10 @@
 // o Backend devolve 422 com a lista de erros do FastAPI.
 // Esperado: o app explica o limite em português ("de 1 a 1440 minutos") e
 // nem chega a mandar o comando.
-// Obtido hoje: a tela mostra o erro técnico cru, em inglês:
+// Obtido em 24/11/2026 (antes da correção): a tela mostra o erro técnico cru, em inglês:
 // [{type: less_than_equal, loc: [body, minutos_ligado], msg: Input should be ...}]
-@Tags(['defeito'])
+// Corrigido na refatoração: saiu da tag "defeito" e roda na suíte normal,
+// protegendo contra a volta do defeito.
 library;
 
 import 'package:flutter/material.dart';

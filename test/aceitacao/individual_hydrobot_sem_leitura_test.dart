@@ -1,10 +1,11 @@
 // CT-ACEIT-03 (teste individual) — História: pedir orientação ao HydroBot.
 //
 // Critério de aceite em BDD (Dado / Quando / Então), executado na tela.
-// Obtido hoje: a tela mostra "pH: NULO", mas o app manda para a IA pH 7,5,
+// Obtido em 24/11/2026 (antes da correção): a tela mostra "pH: NULO", mas o app manda para a IA pH 7,5,
 // 28,5 °C e 45% de umidade, valores que a torre nunca mediu. A resposta da
 // IA fala de uma água que não existe.
-@Tags(['defeito'])
+// Corrigido na refatoração: saiu da tag "defeito" e roda na suíte normal,
+// protegendo contra a volta do defeito.
 library;
 
 import 'dart:convert';

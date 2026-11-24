@@ -109,10 +109,11 @@ const motorJson = {
   'recebidoEm': '2026-11-21T16:05:00',
 };
 
-Map<String, dynamic> plantaJson(int id, String nome, {String? foto}) => {
+/// `tipo` é a espécie (o que vai para a IA); por padrão, igual ao nome.
+Map<String, dynamic> plantaJson(int id, String nome, {String? foto, String? tipo}) => {
       'id': id,
       'nome': nome,
-      'tipo': 'Folhosa',
+      'tipo': tipo ?? nome,
       'data_plantio': '2026-11-01',
       'foto_url': foto,
     };

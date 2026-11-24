@@ -3,10 +3,11 @@
 // Interface testada: tela do HydroBot → BackendService.analisarCultivoIA →
 // POST /analisar-cultivo da IA. O contrato da IA pede a "cultura" (espécie:
 // Alface, Manjericão...) e aceita no máximo 100 caracteres.
-// Obtido hoje: o app manda o APELIDO que o dono deu à planta ("Minha
+// Obtido em 24/11/2026 (antes da correção): o app manda o APELIDO que o dono deu à planta ("Minha
 // favorita") no lugar da espécie (campo `tipo`), e não limita o tamanho, que
-// o Backend também não limita. Falha de propósito enquanto o defeito existir.
-@Tags(['defeito'])
+// o Backend também não limita. 
+// Corrigido na refatoração: saiu da tag "defeito" e roda na suíte normal,
+// protegendo contra a volta do defeito.
 library;
 
 import 'dart:convert';

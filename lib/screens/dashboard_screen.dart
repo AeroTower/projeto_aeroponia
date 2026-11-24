@@ -164,18 +164,21 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  static const _minutosMin = 1;
+  static const _minutosMax = 1440;
+
   Future<void> _iniciarCicloPersonalizado() async {
     final minutosLigado = int.tryParse(_minutosLigadoCtrl.text.trim());
     final minutosDesligado = int.tryParse(_minutosDesligadoCtrl.text.trim());
 
-    if (minutosLigado == null ||
-        minutosDesligado == null ||
-        minutosLigado < 1 ||
-        minutosDesligado < 1) {
+    // Mesma faixa do Back-End (1 a 1440, um dia): o pedido fora dela nem sai.
+    bool foraDaFaixa(int? m) => m == null || m < _minutosMin || m > _minutosMax;
+    if (foraDaFaixa(minutosLigado) || foraDaFaixa(minutosDesligado)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Informe minutos ligados e desligados maiores que zero.',
+            'Informe minutos ligados e desligados maiores que zero, '
+            'de $_minutosMin a $_minutosMax (um dia).',
           ),
         ),
       );
@@ -184,8 +187,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     await _executarComandoMotor(
       () => _backend.iniciarCiclo(
-        minutosLigado: minutosLigado,
-        minutosDesligado: minutosDesligado,
+        minutosLigado: minutosLigado!,
+        minutosDesligado: minutosDesligado!,
       ),
       sucesso:
           'Ciclo iniciado: $minutosLigado min ligado / $minutosDesligado min desligado.',
