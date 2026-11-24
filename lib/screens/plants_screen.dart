@@ -271,7 +271,7 @@ class _AddPlantModalState extends State<_AddPlantModal> {
   // mandava o apelido para a IA.
   static const _tipos = [
     'Alface', 'Rúcula', 'Agrião', 'Couve', 'Espinafre', 'Manjericão', 'Hortelã',
-    'Salsa', 'Cebolinha', 'Coentro', 'Morango', 'Tomate-cereja', 'Outra',
+    'Salsa', 'Cebolinha', 'Coentro', 'Morango', 'Tomate-cereja', 'Outro',
   ];
 
   Future<void> _selecionarFoto() async {

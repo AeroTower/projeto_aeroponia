@@ -109,11 +109,12 @@ const motorJson = {
   'recebidoEm': '2026-11-21T16:05:00',
 };
 
-/// `tipo` é a espécie (o que vai para a IA); por padrão, igual ao nome.
-Map<String, dynamic> plantaJson(int id, String nome, {String? foto, String? tipo}) => {
+/// `tipo` é a espécie (o que vai para a IA). Por padrão "Outro": aí o
+/// HydroBot usa o nome da planta, como o app faz com espécie desconhecida.
+Map<String, dynamic> plantaJson(int id, String nome, {String? foto, String tipo = 'Outro'}) => {
       'id': id,
       'nome': nome,
-      'tipo': tipo ?? nome,
+      'tipo': tipo,
       'data_plantio': '2026-11-01',
       'foto_url': foto,
     };
