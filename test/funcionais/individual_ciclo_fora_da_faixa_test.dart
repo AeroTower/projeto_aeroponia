@@ -42,13 +42,13 @@ void main() {
       await tester.tap(find.text('Iniciar ciclo'));
       await assentar(tester);
     });
-    final erroTecnico = find.textContaining('Input should be').evaluate().isNotEmpty ||
-        find.textContaining('less_than_equal').evaluate().isNotEmpty;
+    final achado = find.textContaining('less_than_equal').evaluate();
+    final textoNaTela = achado.isEmpty ? '' : ((achado.first.widget as Text).data ?? '');
     final pedidos = servidor.para('POST /torres/$idTorre/motor/ciclo').length;
     final explicou = find.textContaining('1440').evaluate().isNotEmpty;
     await desmontar(tester);
 
-    expect(erroTecnico, isFalse, reason: 'a tela mostrou o erro técnico do FastAPI, em inglês');
+    expect(textoNaTela, isEmpty, reason: 'a tela mostrou o erro técnico do FastAPI: "$textoNaTela"');
     expect(pedidos, 0, reason: 'o app mandou um ciclo que o Backend não aceita');
     expect(explicou, isTrue, reason: 'faltou dizer que o limite é 1440 minutos');
   });
