@@ -24,10 +24,25 @@ jobs:
       - name: Dependencias
         run: flutter pub get
 
+      # Os testes com a tag "defeito" ficam fora: reproduzem defeitos ainda
+      # abertos e falham de proposito (passo seguinte).
       - name: Testes e cobertura
         run: >
-          flutter test --coverage --file-reporter json:relatorio-testes.json
+          flutter test --coverage --exclude-tags defeito --file-reporter json:relatorio-testes.json
           --dart-define-from-file=config/desenvolvimento.json
+
+      # Testes individuais que acham defeitos (TESTES.md). Espera-se que
+      # FALHEM enquanto o defeito existir: o passo fica vermelho, mas nao
+      # derruba o job nem o deploy. O log e o resumo servem de evidencia.
+      - name: Testes que acham defeitos (falham de proposito)
+        continue-on-error: true
+        run: >
+          flutter test --tags defeito --file-reporter json:relatorio-defeitos.json
+          --dart-define-from-file=config/desenvolvimento.json
+
+      - name: Resumo dos defeitos encontrados
+        if: always()
+        run: python3 .github/resumo_defeitos.py relatorio-defeitos.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Resumo por tipo e meta de 90%
         if: always()
@@ -49,3 +64,4 @@ jobs:
           path: |
             coverage/
             relatorio-testes.json
+            relatorio-defeitos.json

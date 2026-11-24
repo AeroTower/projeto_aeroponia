@@ -1,0 +1,4 @@
+# Tag "defeito": testes individuais que reproduzem um defeito ainda aberto.
+# Falham de proposito; o CI roda num passo separado (ver TESTES.md).
+tags:
+  defeito:

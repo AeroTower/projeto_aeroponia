@@ -1,0 +1,55 @@
+<!doctype html>
+<!--
+  CT-SEG-03 (teste individual) — O app e a loja podem ser emoldurados?
+  Abra este arquivo no Chrome com dois cliques (não precisa publicar).
+  Página de TESTE do próprio grupo: só carrega os sites do AeroTower.
+-->
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>CT-SEG-03 · Teste de clickjacking (AeroTower)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; max-width: 980px; color: #222; }
+    .controles { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+    .palco { position: relative; width: 420px; height: 760px; border: 2px dashed #c62828; }
+    .palco iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+                    opacity: var(--opacidade, .35); z-index: 2; background: transparent; }
+    .isca { position: absolute; left: 90px; top: 420px; z-index: 1; padding: 14px 22px;
+            background: #ffd54f; border-radius: 10px; font-weight: 700; }
+    .legenda { font-size: 14px; color: #555; }
+  </style>
+</head>
+<body>
+  <h1>CT-SEG-03 · O site pode ser aberto dentro de outro site?</h1>
+  <p>
+    Se o site aparecer dentro do quadro tracejado, ele <b>pode ser emoldurado</b>. Um site
+    malicioso poderia deixá-lo invisível por cima de um botão-isca, e o clique de quem
+    está logado cairia num botão do app (desligar a bomba, remover a torre).
+    Se o quadro ficar vazio ou mostrar “recusou a conexão”, o site está protegido
+    (cabeçalho <code>X-Frame-Options</code> ou <code>Content-Security-Policy: frame-ancestors</code>).
+  </p>
+  <div class="controles">
+    <label>Site:
+      <select id="site">
+        <option value="https://app.aerotower.com.br">App (app.aerotower.com.br)</option>
+        <option value="https://aerotower.com.br">Loja (aerotower.com.br)</option>
+      </select>
+    </label>
+    <label>Opacidade do site: <input id="opacidade" type="range" min="0" max="1" step="0.05" value="0.35"></label>
+  </div>
+  <div class="palco" id="palco">
+    <div class="isca">Ver promoção</div>
+    <iframe id="quadro" src="https://app.aerotower.com.br" title="Site do AeroTower emoldurado"></iframe>
+  </div>
+  <p class="legenda">
+    Para a evidência: tire um print com opacidade 0,35 (site e isca sobrepostos) e outro com
+    opacidade 0 (só a isca à vista, o site invisível por cima). Repita escolhendo a loja.
+  </p>
+  <script>
+    const quadro = document.getElementById('quadro');
+    document.getElementById('site').onchange = (e) => { quadro.src = e.target.value; };
+    document.getElementById('opacidade').oninput = (e) =>
+      document.getElementById('palco').style.setProperty('--opacidade', e.target.value);
+  </script>
+</body>
+</html>
