@@ -2,7 +2,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hidro_app/models/backend_models.dart';
 import 'package:hidro_app/models/torre.dart';
-import 'package:hidro_app/screens/plants_screen.dart';
+import 'package:hidro_app/models/planta.dart';
 
 void main() {
   group('SensorSnapshot', () {

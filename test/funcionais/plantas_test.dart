@@ -58,10 +58,10 @@ void main() {
 
       await tester.tap(find.text('Adicionar foto (opcional)'));
       await assentar(tester);
-      await tester.enterText(find.widgetWithText(TextFormField, 'Nome da planta'), 'Rúcula');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Nome da planta'), 'Minha horta');
       await tester.tap(find.text('Selecione o tipo'));
       await assentar(tester);
-      await tester.tap(find.text('Folhosa').last);
+      await tester.tap(find.text('Rúcula').last);
       await assentar(tester);
       await tester.tap(find.widgetWithText(TextFormField, 'Data de plantio'));
       await assentar(tester);
@@ -74,8 +74,8 @@ void main() {
     });
     // O corpo tem a foto (binário): lê como texto tolerante.
     final corpo = utf8.decode(servidor.para('POST /torres/$idTorre/plantas').single.bodyBytes, allowMalformed: true);
+    expect(corpo, contains('Minha horta'));
     expect(corpo, contains('Rúcula'));
-    expect(corpo, contains('Folhosa'));
     expect(corpo, contains('filename="alface.png"'));
     expect(RegExp(r'\d{4}-\d{2}-\d{2}').hasMatch(corpo), isTrue);
     expect(find.text('Rúcula'), findsOneWidget);

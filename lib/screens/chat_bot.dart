@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../services/backend_service.dart';
+import '../services/ia_service.dart';
+import '../services/planta_service.dart';
 import '../theme/app_theme.dart';
-import 'plants_screen.dart'; // Importa a classe Plant e PlantaService
 
 // ── Modelo de mensagem ─────────────────────────────────────────────────────────
 class _Message {
@@ -45,8 +46,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   bool _isTyping = false;
   final List<Map<String, String>> _history = [];
   
-  // Instância do serviço que faz a chamada HTTP
-  final _backend = BackendService();
+  // Cliente do microsserviço de IA (endereço em AppConfig.iaBaseUrl)
+  final _ia = IaService();
 
   @override
   void initState() {
@@ -94,16 +95,47 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   @override
   void dispose() {
-    _backend.close();
+    _ia.close();
     _scrollCtrl.dispose();
     super.dispose();
   }
 
   // ── Gerar orientação usando o Microserviço ───────────────────────────────────
 
+  /// Limite do campo `cultura` no contrato da IA (POST /analisar-cultivo).
+  static const _maxCultura = 100;
+
+  /// Espécie da planta selecionada (campo `tipo`): é o que a IA conhece.
+  /// O nome é o apelido dado pelo dono ("Minha favorita") e não serve.
+  String get _culturaSelecionada {
+    final planta = _plantasReais.where((p) => p.nome == _selectedPlantNome).firstOrNull;
+    final tipo = planta?.tipo.trim() ?? '';
+    // "Outra"/"Outro" não diz a espécie: aí o nome é a melhor pista.
+    final generico = tipo.isEmpty || tipo == 'Outra' || tipo == 'Outro';
+    final cultura = generico ? _selectedPlantNome!.trim() : tipo;
+    return cultura.length > _maxCultura ? cultura.substring(0, _maxCultura) : cultura;
+  }
+
+  /// Leituras que a torre ainda não mandou. Sem elas a IA não tem o que analisar.
+  List<String> get _leiturasFaltando => [
+        if (widget.phAtual == null) 'pH',
+        if (widget.tempAtual == null) 'temperatura',
+        if (widget.umidadeAtual == null) 'umidade',
+      ];
+
   Future<void> _solicitarOrientacaoMicroservico() async {
     if (_isTyping) return;
-    
+
+    // Sem leitura, não chama a IA: antes o app inventava pH 7,5, 28,5 °C e
+    // 45% de umidade, e a IA respondia sobre uma água que não existe.
+    final faltando = _leiturasFaltando;
+    if (faltando.isNotEmpty) {
+      _addError('Ainda não há leitura de ${faltando.join(', ')} da torre. '
+          'O HydroBot precisa de pH, temperatura e umidade para orientar; '
+          'tente de novo em alguns minutos.');
+      return;
+    }
+
     // Trava de segurança: impede o envio se não houver planta selecionada
     if (_selectedPlantNome == null) {
       _addError('Selecione uma planta primeiro. Se não houver nenhuma, cadastre na tela de Plantas.');
@@ -123,11 +155,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _scrollToBottom();
 
     try {
-      final reply = await _backend.analisarCultivoIA(
-        cultura: _selectedPlantNome!,
-        ph: widget.phAtual ?? 7.5,
-        temperatura: widget.tempAtual ?? 28.5,
-        umidade: widget.umidadeAtual ?? 45.0,
+      final reply = await _ia.analisarCultivo(
+        cultura: _culturaSelecionada,
+        ph: widget.phAtual!,
+        temperatura: widget.tempAtual!,
+        umidade: widget.umidadeAtual!,
       );
 
       if (!mounted) return;
@@ -141,7 +173,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     } on BackendException catch (e) {
       _addError('Erro da IA: ${e.message}');
     } catch (e) {
-      _addError('Falha ao conectar com hidroponia-ia.azurewebsites.net.');
+      _addError('Falha ao conectar com o serviço de IA. Tente de novo em instantes.');
     }
 
     _scrollToBottom();
@@ -498,7 +530,7 @@ class _TypingDotsState extends State<_TypingDots>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (_, __) {
+      builder: (context, child) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {

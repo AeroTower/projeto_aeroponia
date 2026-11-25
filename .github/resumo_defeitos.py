@@ -8,6 +8,7 @@ defeito foi corrigido e o teste pode perder a marca `defeito`.
 Uso: python resumo_defeitos.py relatorio-defeitos.xml|.json
 """
 import json
+import os
 import sys
 import xml.etree.ElementTree as ET
 
@@ -46,6 +47,12 @@ def _linhas_flutter(caminho):
 
 
 def main(caminho):
+    if not os.path.exists(caminho):
+        # Sem nenhum teste com a marca/tag "defeito", o flutter test nem cria o
+        # relatorio: todos os defeitos achados ate agora foram corrigidos.
+        print("## Testes individuais que acham defeitos\n")
+        print("Nenhum teste com a marca `defeito`: os defeitos achados foram corrigidos.")
+        return
     linhas = list(_linhas_flutter(caminho) if caminho.endswith(".json") else _linhas_junit(caminho))
     falhas = sum(1 for _, e, _ in linhas if e.startswith("❌"))
     print("## Testes individuais que acham defeitos\n")

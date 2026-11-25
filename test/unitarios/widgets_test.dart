@@ -5,8 +5,6 @@ import 'package:hidro_app/theme/app_theme.dart';
 import 'package:hidro_app/widgets/aero_logo.dart';
 import 'package:hidro_app/widgets/gauge_card.dart';
 import 'package:hidro_app/widgets/nivel_agua_card.dart';
-import 'package:hidro_app/widgets/plant_card.dart';
-import 'package:hidro_app/widgets/sensor_card.dart';
 
 Future<void> _mostrar(WidgetTester tester, Widget w, {double largura = 300, double altura = 200,
     Size tela = const Size(800, 600)}) async {
@@ -86,16 +84,6 @@ void main() {
           largura: 200, altura: 220, tela: const Size(340, 600));
       expect(find.text('60%'), findsOneWidget);
     });
-  });
-
-  testWidgets('cartões simples de planta e sensor', (tester) async {
-    await _mostrar(tester, const Row(children: [
-      Expanded(child: PlantCard(name: 'Alface', status: 'Saudável')),
-      Expanded(child: SensorCard(title: 'pH', value: '6.1')),
-    ]), largura: 600);
-    expect(find.text('Alface'), findsOneWidget);
-    expect(find.text('Saudável'), findsOneWidget);
-    expect(find.text('6.1'), findsOneWidget);
   });
 
   testWidgets('logo', (tester) async {

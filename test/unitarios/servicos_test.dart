@@ -2,8 +2,9 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hidro_app/screens/plants_screen.dart';
 import 'package:hidro_app/services/backend_service.dart';
+import 'package:hidro_app/services/ia_service.dart';
+import 'package:hidro_app/services/planta_service.dart';
 import 'package:hidro_app/services/sessao.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -83,25 +84,6 @@ void main() {
           throwsA(isA<BackendException>().having((e) => e.message, 'm', contains('502'))));
     });
 
-    group('IA', () {
-      test('devolve as sugestões, uma por linha', () async {
-        servidor.quando('POST /analisar-cultivo', {'sugestoes_acao': ['Baixe o pH', 'Troque a água']});
-        final r = await backend().analisarCultivoIA(cultura: 'Alface', ph: 7.5, temperatura: 22, umidade: 60);
-        expect(r, 'Baixe o pH\nTroque a água');
-        final pedido = servidor.para('POST /analisar-cultivo').single;
-        expect(pedido.url.host, 'hidroponia-ia.azurewebsites.net');
-        expect(jsonDecode(pedido.body), {'cultura': 'Alface', 'ph': 7.5, 'temperatura': 22, 'umidade': 60});
-      });
-
-      test('sem sugestões, mostra o diagnóstico ou o status', () async {
-        servidor.quando('POST /analisar-cultivo', {'diagnostico_breve': 'Tudo certo.'});
-        expect(await backend().analisarCultivoIA(cultura: 'A', ph: 6, temperatura: 22, umidade: 60), 'Tudo certo.');
-        servidor.quando('POST /analisar-cultivo', {'status_sistema': 'Normal'});
-        expect(await backend().analisarCultivoIA(cultura: 'A', ph: 6, temperatura: 22, umidade: 60),
-            'Status do sistema: Normal');
-      });
-    });
-
     test('uriRaiz monta o endereço na raiz do Backend', () {
       expect(BackendService.uriRaiz('/torres').path, endsWith('/torres'));
       expect(BackendService.uriRaiz('/torres').path, isNot(contains('/dados')));
@@ -178,6 +160,42 @@ void main() {
     });
   });
 
+  group('IaService', () {
+    late ServidorFalso servidor;
+    IaService ia({String? baseUrl}) => IaService(client: servidor.cliente, baseUrl: baseUrl);
+
+    setUp(() => servidor = servidorComTorre());
+
+    test('devolve as sugestões, uma por linha', () async {
+      servidor.quando('POST /analisar-cultivo', {'sugestoes_acao': ['Baixe o pH', 'Troque a água']});
+      final r = await ia().analisarCultivo(cultura: 'Alface', ph: 7.5, temperatura: 22, umidade: 60);
+      expect(r, 'Baixe o pH\nTroque a água');
+      final pedido = servidor.para('POST /analisar-cultivo').single;
+      // Endereço vem do config (IA_BASE_URL), não mais escrito no código.
+      expect(pedido.url.host, 'hidroponia-ia.azurewebsites.net');
+      expect(jsonDecode(pedido.body), {'cultura': 'Alface', 'ph': 7.5, 'temperatura': 22, 'umidade': 60});
+    });
+
+    test('sem sugestões, mostra o diagnóstico ou o status', () async {
+      servidor.quando('POST /analisar-cultivo', {'diagnostico_breve': 'Tudo certo.'});
+      expect(await ia().analisarCultivo(cultura: 'A', ph: 6, temperatura: 22, umidade: 60), 'Tudo certo.');
+      servidor.quando('POST /analisar-cultivo', {'status_sistema': 'Normal'});
+      expect(await ia().analisarCultivo(cultura: 'A', ph: 6, temperatura: 22, umidade: 60),
+          'Status do sistema: Normal');
+    });
+
+    test('outro endereço e erro do serviço com a mensagem dele', () async {
+      servidor.quando('POST /analisar-cultivo', {'detail': 'Falha interna.'}, status: 500);
+      final cliente = ia(baseUrl: 'https://ia.teste');
+      await expectLater(
+        cliente.analisarCultivo(cultura: 'A', ph: 6, temperatura: 22, umidade: 60),
+        throwsA(isA<BackendException>().having((e) => e.message, 'm', 'Falha interna.')),
+      );
+      expect(servidor.para('POST /analisar-cultivo').single.url.host, 'ia.teste');
+      cliente.close();
+    });
+  });
+
   group('PlantaService', () {
     test('lista, cria (com e sem foto) e apaga', () async {
       logar();
@@ -199,6 +217,14 @@ void main() {
       expect(envios.first.headers['Authorization'], 'Bearer token-de-sessao');
       expect(envios.first.body, contains('name="nome"'));
       expect(envios.last.body, contains('filename="rucula.jpg"'));
+    });
+
+    test('endereço da foto fica no mesmo servidor do Backend', () {
+      const semFoto = Plant(id: 1, nome: 'Alface', tipo: 'Folhosa', dataPlantio: '2026-11-01');
+      const comFoto = Plant(id: 2, nome: 'Rúcula', tipo: 'Folhosa', dataPlantio: '2026-11-01',
+          fotoUrl: '/static/fotos/2.jpg');
+      expect(PlantaService.urlDaFoto(semFoto), isNull);
+      expect(PlantaService.urlDaFoto(comFoto), '${BackendService.uriRaiz('')}/static/fotos/2.jpg');
     });
 
     test('erros do Backend viram exceção', () async {

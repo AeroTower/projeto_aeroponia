@@ -16,6 +16,51 @@ class BackendException implements Exception {
   String toString() => message;
 }
 
+/// Corpo JSON de uma resposta 2xx. Fora disso, [BackendException] com o
+/// "detail" do servidor (FastAPI) ou uma mensagem com o status.
+dynamic decodificarResposta(http.Response response) {
+  final dynamic body = response.body.isEmpty
+      ? <String, dynamic>{}
+      : jsonDecode(response.body);
+
+  if (response.statusCode >= 200 && response.statusCode < 300) {
+    return body;
+  }
+
+  final dynamic bruto = body is Map ? body['detail'] : null;
+  // 422 do FastAPI/Pydantic: lista de erros técnicos, em inglês. Antes ia
+  // crua para a tela ("[{type: less_than_equal, loc: [...], msg: ...}]").
+  final detail = bruto is List ? mensagemDeValidacao(bruto) : bruto?.toString();
+  throw BackendException(
+    detail?.isNotEmpty == true
+        ? detail!
+        : 'Backend retornou erro ${response.statusCode}.',
+    statusCode: response.statusCode,
+  );
+}
+
+/// Traduz a lista de erros de validação do FastAPI para uma frase simples.
+String mensagemDeValidacao(List<dynamic> erros) {
+  final partes = erros.whereType<Map>().map((erro) {
+    final loc = erro['loc'];
+    final campo = loc is List && loc.isNotEmpty ? loc.last.toString() : 'campo';
+    final ctx = erro['ctx'] is Map ? erro['ctx'] as Map : const {};
+    switch (erro['type']) {
+      case 'less_than_equal':
+        return '$campo deve ser no máximo ${ctx['le']}';
+      case 'greater_than_equal':
+        return '$campo deve ser no mínimo ${ctx['ge']}';
+      case 'string_too_long':
+        return '$campo pode ter no máximo ${ctx['max_length']} caracteres';
+      case 'missing':
+        return '$campo é obrigatório';
+      default:
+        return '$campo com valor inválido';
+    }
+  }).toList();
+  return partes.isEmpty ? 'Dados inválidos.' : 'Dados inválidos: ${partes.join('; ')}.';
+}
+
 class BackendService {
   static const defaultBaseUrl =
       'https://aerotower-backend-bfb7frgsbccuanhf.eastus-01.azurewebsites.net/dados';
@@ -150,59 +195,9 @@ class BackendService {
     return _decodeAny(response) as Map<String, dynamic>;
   }
 
-  dynamic _decodeAny(http.Response response) {
-    final dynamic body = response.body.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(response.body);
-
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return body;
-    }
-
-    final detail = body is Map ? body['detail']?.toString() : null;
-    throw BackendException(
-      detail?.isNotEmpty == true
-          ? detail!
-          : 'Backend retornou erro ${response.statusCode}.',
-      statusCode: response.statusCode,
-    );
-  }
+  dynamic _decodeAny(http.Response response) => decodificarResposta(response);
 
   static String _normalizeBaseUrl(String url) {
     return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
-  }
-
-Future<String> analisarCultivoIA({
-    required String cultura,
-    required double ph,
-    required double temperatura,
-    required double umidade,
-  }) async {
-    // URL específica do seu microserviço de IA
-    final uri = Uri.parse('https://hidroponia-ia.azurewebsites.net/analisar-cultivo');
-
-    final response = await _client.post(
-      uri,
-      headers: {
-        'accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'cultura': cultura,
-        'ph': ph,
-        'temperatura': temperatura,
-        'umidade': umidade,
-      }),
-    ).timeout(const Duration(seconds: 30));
-
-    // Reaproveita o seu tratamento de erro nativo (lança BackendException se falhar)
-    final body = _decodeResponse(response);
-
-    // Retorna a lista de sugestões formatada, ou o diagnóstico/status como fallback
-    if (body['sugestoes_acao'] is List) {
-      return (body['sugestoes_acao'] as List).join('\n');
-    }
-    
-    return body['diagnostico_breve']?.toString() ?? 'Status do sistema: ${body['status_sistema']}';
   }
 }

@@ -10,7 +10,6 @@ import 'package:hidro_app/services/sessao.dart';
 import 'package:hidro_app/theme/app_theme.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
 /// Faz o papel do Backend, do serviço de auth e da IA ao mesmo tempo.
@@ -110,10 +109,12 @@ const motorJson = {
   'recebidoEm': '2026-11-21T16:05:00',
 };
 
-Map<String, dynamic> plantaJson(int id, String nome, {String? foto}) => {
+/// `tipo` é a espécie (o que vai para a IA). Por padrão "Outro": aí o
+/// HydroBot usa o nome da planta, como o app faz com espécie desconhecida.
+Map<String, dynamic> plantaJson(int id, String nome, {String? foto, String tipo = 'Outro'}) => {
       'id': id,
       'nome': nome,
-      'tipo': 'Folhosa',
+      'tipo': tipo,
       'data_plantio': '2026-11-01',
       'foto_url': foto,
     };
